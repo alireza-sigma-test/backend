@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use App\Enums\ProposalStatus;
 use App\Models\Proposal;
+use App\Models\ProposalStatusChange;
 use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
@@ -40,7 +41,7 @@ class DemoSeeder extends Seeder
             'name' => $name, 'email' => $email,
         ]));
 
-        User::factory()->admin()->create([
+        $admin = User::factory()->admin()->create([
             'name' => 'Alex Vance', 'email' => 'alex@example.com',
         ]);
 
@@ -88,5 +89,56 @@ class DemoSeeder extends Seeder
                 'comment' => $comment,
             ]);
         }
+
+        // Without this, AttachmentStore, the private-disk signed URL and the
+        // whole attachment feature never appear to anyone who just runs the
+        // app — the seeded data has no way to exercise them. Content must
+        // start with the real %PDF signature: Media Library sniffs actual
+        // bytes, not the filename, so anything else is rejected by the
+        // collection's acceptsMimeTypes(['application/pdf']).
+        $flagship->addMediaFromString("%PDF-1.4\n%demo seed attachment\n".str_repeat('a', 200))
+            ->usingFileName('observability-at-scale-slides.pdf')
+            ->toMediaCollection(Proposal::ATTACHMENT_COLLECTION);
+
+        // REVIEW_MIN_REVIEWS_TO_DECIDE defaults to 2, yet every decided
+        // proposal here had zero reviews — data the app's own workflow could
+        // never produce. Give one approved proposal the reviews that would
+        // have supported its decision, then record the decision itself below.
+        $approved = Proposal::where('title', 'Designing for slow networks')->firstOrFail();
+
+        $approvedReviewRows = [
+            ['Maya Kessler', 4, 'Solid, practical patterns for constrained connections. Ready for the schedule.'],
+            ['Sofia Lindqvist', 5, 'The offline-first walkthrough alone is worth the slot.'],
+        ];
+
+        foreach ($approvedReviewRows as [$name, $rating, $comment]) {
+            Review::create([
+                'proposal_id' => $approved->id,
+                'user_id' => $reviewers->firstWhere('name', $name)->id,
+                'rating' => $rating,
+                'comment' => $comment,
+            ]);
+        }
+
+        // The audit trail (/history, once built) is otherwise empty even
+        // though two proposals already carry a decision — these are the rows
+        // ChangeProposalStatus would have written for that approval and this
+        // rejection.
+        $rejected = Proposal::where('title', 'Why we left microservices')->firstOrFail();
+
+        ProposalStatusChange::create([
+            'proposal_id' => $approved->id,
+            'from' => ProposalStatus::Pending,
+            'to' => ProposalStatus::Approved,
+            'changed_by' => $admin->id,
+        ]);
+
+        ProposalStatusChange::create([
+            'proposal_id' => $rejected->id,
+            'from' => ProposalStatus::Pending,
+            'to' => ProposalStatus::Rejected,
+            'note' => 'Overlaps heavily with an already-accepted talk on distributed tracing.',
+            'changed_by' => $admin->id,
+        ]);
     }
 }
