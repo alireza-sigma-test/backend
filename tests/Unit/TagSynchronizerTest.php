@@ -36,6 +36,38 @@ describe('tag synchronizer', function () {
             ->and($proposal->tags()->count())->toBe(1);
     });
 
+    it('normalises punctuation and spacing into one slug', function () {
+        // Given — case folding alone is handled by the utf8mb4_unicode_ci
+        // collation, so the case-only test above would still pass with
+        // Str::slug() removed. These spellings only converge because the
+        // service slugifies, which makes this the load-bearing assertion.
+        $proposal = Proposal::factory()->create();
+
+        // When
+        app(TagSynchronizer::class)->sync($proposal, ['Machine Learning', 'machine  learning', 'Machine-Learning!']);
+
+        // Then
+        expect(Tag::where('slug', 'machine-learning')->count())->toBe(1)
+            ->and($proposal->tags()->count())->toBe(1);
+    });
+
+    it('keeps an over-long tag name within both column limits', function () {
+        // Given — tag names are free text from the client. Slugging the
+        // untruncated name overflows the 40-char slug column with a raw
+        // QueryException rather than a graceful result.
+        $proposal = Proposal::factory()->create();
+        $long = str_repeat('supercalifragilistic ', 5); // 105 chars
+
+        // When
+        app(TagSynchronizer::class)->sync($proposal, [$long]);
+
+        // Then
+        $tag = Tag::sole();
+        expect(strlen($tag->name))->toBeLessThanOrEqual(40)
+            ->and(strlen($tag->slug))->toBeLessThanOrEqual(40)
+            ->and($proposal->tags()->count())->toBe(1);
+    });
+
     it('replaces the previous tag set rather than appending', function () {
         // Given
         $proposal = Proposal::factory()->create();
