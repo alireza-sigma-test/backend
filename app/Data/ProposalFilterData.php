@@ -1,5 +1,7 @@
 <?php
+
 // app/Data/ProposalFilterData.php
+
 namespace App\Data;
 
 use App\Enums\ProposalStatus;

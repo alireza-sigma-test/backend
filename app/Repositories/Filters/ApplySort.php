@@ -1,5 +1,7 @@
 <?php
+
 // app/Repositories/Filters/ApplySort.php
+
 namespace App\Repositories\Filters;
 
 use Closure;

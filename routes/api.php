@@ -1,7 +1,12 @@
 <?php
+
 // routes/api.php
 
-use App\Http\Controllers\Api\{AuthController, ProposalController, ReviewController, StatusController, TagController};
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ProposalController;
+use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\StatusController;
+use App\Http\Controllers\Api\TagController;
 use Illuminate\Support\Facades\Route;
 
 // Named limiters, not the inline `throttle:6,1` form. Laravel keys an unnamed

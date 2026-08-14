@@ -1,9 +1,14 @@
 <?php
+
 // database/seeders/DemoSeeder.php
+
 namespace Database\Seeders;
 
 use App\Enums\ProposalStatus;
-use App\Models\{Proposal, Review, Tag, User};
+use App\Models\Proposal;
+use App\Models\Review;
+use App\Models\Tag;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class DemoSeeder extends Seeder

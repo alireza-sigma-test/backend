@@ -1,5 +1,7 @@
 <?php
+
 // app/Http/Requests/StoreProposalRequest.php
+
 namespace App\Http\Requests;
 
 use App\Data\ProposalData;

@@ -1,11 +1,15 @@
 <?php
+
 // tests/Feature/Proposals/ShowProposalTest.php
 
-use App\Models\{Proposal, Review, User};
+use App\Models\Proposal;
+use App\Models\Review;
+use App\Models\User;
+use Database\Seeders\RoleSeeder;
 
 describe('proposal detail', function () {
 
-    beforeEach(fn () => $this->seed(Database\Seeders\RoleSeeder::class));
+    beforeEach(fn () => $this->seed(RoleSeeder::class));
 
     it('hides individual ratings from the owning speaker', function () {
         // Given

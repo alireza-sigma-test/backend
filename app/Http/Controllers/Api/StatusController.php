@@ -1,11 +1,14 @@
 <?php
+
 // app/Http/Controllers/Api/StatusController.php
+
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Proposals\ChangeProposalStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ChangeStatusRequest;
-use App\Http\Resources\{ProposalResource, UserResource};
+use App\Http\Resources\ProposalResource;
+use App\Http\Resources\UserResource;
 use App\Models\Proposal;
 use Illuminate\Http\JsonResponse;
 

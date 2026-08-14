@@ -1,5 +1,7 @@
 <?php
+
 // app/Data/ReviewData.php
+
 namespace App\Data;
 
 final readonly class ReviewData

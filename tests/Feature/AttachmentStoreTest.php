@@ -1,8 +1,10 @@
 <?php
+
 // tests/Feature/AttachmentStoreTest.php
 
 use App\Models\Proposal;
 use App\Services\AttachmentStore;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Support\Facades\Storage;
 
 describe('attachment store', function () {
@@ -10,7 +12,7 @@ describe('attachment store', function () {
     // Proposal::factory() creates its author via User::factory()->speaker(),
     // which calls assignRole() — that needs the role to already exist.
     beforeEach(function () {
-        $this->seed(Database\Seeders\RoleSeeder::class);
+        $this->seed(RoleSeeder::class);
         Storage::fake('local');
     });
 

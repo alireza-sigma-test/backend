@@ -1,9 +1,12 @@
 <?php
+
 // app/Http/Requests/IndexProposalRequest.php
+
 namespace App\Http\Requests;
 
 use App\Data\ProposalFilterData;
-use App\Enums\{ProposalStatus, UserRole};
+use App\Enums\ProposalStatus;
+use App\Enums\UserRole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 

@@ -1,8 +1,11 @@
 <?php
+
 // app/Policies/ReviewPolicy.php
+
 namespace App\Policies;
 
-use App\Models\{Review, User};
+use App\Models\Review;
+use App\Models\User;
 
 class ReviewPolicy
 {

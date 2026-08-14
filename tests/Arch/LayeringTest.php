@@ -1,4 +1,5 @@
 <?php
+
 // tests/Arch/LayeringTest.php
 
 arch('enums are string-backed')

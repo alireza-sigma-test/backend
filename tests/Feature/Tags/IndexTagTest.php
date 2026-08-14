@@ -1,11 +1,15 @@
 <?php
+
 // tests/Feature/Tags/IndexTagTest.php
 
-use App\Models\{Proposal, Tag, User};
+use App\Models\Proposal;
+use App\Models\Tag;
+use App\Models\User;
+use Database\Seeders\RoleSeeder;
 
 describe('tag index', function () {
 
-    beforeEach(fn () => $this->seed(Database\Seeders\RoleSeeder::class));
+    beforeEach(fn () => $this->seed(RoleSeeder::class));
 
     it('returns tags ordered by name with a proposals count', function () {
         // Given

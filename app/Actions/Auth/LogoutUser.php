@@ -1,5 +1,7 @@
 <?php
+
 // app/Actions/Auth/LogoutUser.php
+
 namespace App\Actions\Auth;
 
 use App\Models\User;

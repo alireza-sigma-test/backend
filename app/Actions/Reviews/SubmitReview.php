@@ -1,9 +1,13 @@
 <?php
+
 // app/Actions/Reviews/SubmitReview.php
+
 namespace App\Actions\Reviews;
 
 use App\Data\ReviewData;
-use App\Models\{Proposal, Review, User};
+use App\Models\Proposal;
+use App\Models\Review;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 final class SubmitReview

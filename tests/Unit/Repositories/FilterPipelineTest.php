@@ -1,10 +1,16 @@
 <?php
+
 // tests/Unit/Repositories/FilterPipelineTest.php
 
 use App\Data\ProposalFilterData;
 use App\Enums\ProposalStatus;
-use App\Models\{Proposal, Review, Tag, User};
+use App\Models\Proposal;
+use App\Models\Review;
+use App\Models\Tag;
+use App\Models\User;
 use App\Repositories\Contracts\ProposalRepository;
+use Database\Seeders\RoleSeeder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
 describe('proposal repository', function () {
@@ -13,7 +19,7 @@ describe('proposal repository', function () {
         // Role states on User::factory() call assignRole(), which needs the
         // role to already exist — same pattern as every other test file that
         // uses role-state factories.
-        $this->seed(Database\Seeders\RoleSeeder::class);
+        $this->seed(RoleSeeder::class);
 
         $this->reviewer = User::factory()->reviewer()->create();
         $this->dana = User::factory()->speaker()->create();
@@ -198,7 +204,7 @@ describe('proposal repository', function () {
     it('hides another speakers proposal from findForViewer as if it does not exist', function () {
         // When / Then — dana may not look up ilya's proposal by id.
         expect(fn () => $this->repo->findForViewer($this->networks->id, $this->dana))
-            ->toThrow(Illuminate\Database\Eloquent\ModelNotFoundException::class);
+            ->toThrow(ModelNotFoundException::class);
     });
 
     it('eager-loads author, tags, media and myReview for every paginated row', function () {

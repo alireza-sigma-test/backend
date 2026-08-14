@@ -1,5 +1,7 @@
 <?php
+
 // app/Actions/Auth/LoginUser.php
+
 namespace App\Actions\Auth;
 
 use App\Data\LoginData;

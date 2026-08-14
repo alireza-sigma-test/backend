@@ -1,12 +1,14 @@
 <?php
+
 // tests/Feature/Policies/ProposalPolicyTest.php
 
-use App\Enums\ProposalStatus;
-use App\Models\{Proposal, User};
+use App\Models\Proposal;
+use App\Models\User;
+use Database\Seeders\RoleSeeder;
 
 describe('proposal policy', function () {
 
-    beforeEach(fn () => $this->seed(Database\Seeders\RoleSeeder::class));
+    beforeEach(fn () => $this->seed(RoleSeeder::class));
 
     it('lets the owning speaker edit only while pending', function () {
         // Given

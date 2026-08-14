@@ -1,14 +1,18 @@
 <?php
+
 // app/Http/Controllers/Api/ProposalController.php
+
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Proposals\SubmitProposal;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\{IndexProposalRequest, StoreProposalRequest};
+use App\Http\Requests\IndexProposalRequest;
+use App\Http\Requests\StoreProposalRequest;
 use App\Http\Resources\ProposalResource;
 use App\Models\Proposal;
 use App\Repositories\Contracts\ProposalRepository;
-use Illuminate\Http\{JsonResponse, Request};
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ProposalController extends Controller

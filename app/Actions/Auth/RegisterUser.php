@@ -1,5 +1,7 @@
 <?php
+
 // app/Actions/Auth/RegisterUser.php
+
 namespace App\Actions\Auth;
 
 use App\Data\RegisterData;

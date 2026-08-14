@@ -1,11 +1,15 @@
 <?php
+
 // tests/Feature/Policies/ReviewPolicyTest.php
 
-use App\Models\{Proposal, Review, User};
+use App\Models\Proposal;
+use App\Models\Review;
+use App\Models\User;
+use Database\Seeders\RoleSeeder;
 
 describe('review policy', function () {
 
-    beforeEach(fn () => $this->seed(Database\Seeders\RoleSeeder::class));
+    beforeEach(fn () => $this->seed(RoleSeeder::class));
 
     it('lets the review author edit and delete their own review', function () {
         // Given

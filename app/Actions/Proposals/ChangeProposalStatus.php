@@ -1,16 +1,20 @@
 <?php
+
 // app/Actions/Proposals/ChangeProposalStatus.php
+
 namespace App\Actions\Proposals;
 
 use App\Data\StatusChangeData;
-use App\Models\{Proposal, ProposalStatusChange, User};
+use App\Models\Proposal;
+use App\Models\ProposalStatusChange;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 final class ChangeProposalStatus
 {
     /**
      * @return array{proposal: Proposal, change: ?ProposalStatusChange}
-     *         `change` is null for a no-op, which writes no audit row.
+     *                                                                  `change` is null for a no-op, which writes no audit row.
      */
     public function handle(User $admin, Proposal $proposal, StatusChangeData $data): array
     {

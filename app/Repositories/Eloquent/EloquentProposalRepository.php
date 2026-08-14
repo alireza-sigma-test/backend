@@ -1,12 +1,20 @@
 <?php
+
 // app/Repositories/Eloquent/EloquentProposalRepository.php
+
 namespace App\Repositories\Eloquent;
 
 use App\Data\ProposalFilterData;
-use App\Enums\{ProposalStatus, UserRole};
-use App\Models\{Proposal, User};
+use App\Enums\ProposalStatus;
+use App\Enums\UserRole;
+use App\Models\Proposal;
+use App\Models\User;
 use App\Repositories\Contracts\ProposalRepository;
-use App\Repositories\Filters\{ApplySort, FilterAuthor, FilterStatus, FilterTags, SearchTitle};
+use App\Repositories\Filters\ApplySort;
+use App\Repositories\Filters\FilterAuthor;
+use App\Repositories\Filters\FilterStatus;
+use App\Repositories\Filters\FilterTags;
+use App\Repositories\Filters\SearchTitle;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pipeline\Pipeline;

@@ -1,5 +1,7 @@
 <?php
+
 // app/Repositories/Filters/FilterStatus.php
+
 namespace App\Repositories\Filters;
 
 use App\Enums\ProposalStatus;

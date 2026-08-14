@@ -33,10 +33,16 @@ fresh: ## Drop, re-migrate and re-seed the database
 test: ## Run the Pest suite — ARGS="--filter=Foo" narrows it
 	$(PHP) php artisan test $(ARGS)
 
+lint: ## Check code style without changing files (CI-safe)
+	$(PHP) ./vendor/bin/pint --test
+
+lint-fix: ## Auto-fix code style
+	$(PHP) ./vendor/bin/pint
+
 shell: ## Open a shell in the PHP container
 	$(PHP) sh
 
 logs: ## Tail all container logs
 	$(DC) logs -f
 
-.PHONY: help up down fresh test shell logs
+.PHONY: help up down fresh test lint lint-fix shell logs

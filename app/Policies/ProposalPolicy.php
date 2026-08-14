@@ -1,9 +1,13 @@
 <?php
+
 // app/Policies/ProposalPolicy.php
+
 namespace App\Policies;
 
-use App\Enums\{ProposalStatus, UserRole};
-use App\Models\{Proposal, User};
+use App\Enums\ProposalStatus;
+use App\Enums\UserRole;
+use App\Models\Proposal;
+use App\Models\User;
 
 class ProposalPolicy
 {

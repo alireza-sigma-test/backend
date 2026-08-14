@@ -1,11 +1,13 @@
 <?php
+
 // tests/Feature/Auth/LoginTest.php
 
 use App\Models\User;
+use Database\Seeders\RoleSeeder;
 
 describe('login', function () {
 
-    beforeEach(fn () => $this->seed(Database\Seeders\RoleSeeder::class));
+    beforeEach(fn () => $this->seed(RoleSeeder::class));
 
     it('returns a token for valid credentials', function () {
         // Given

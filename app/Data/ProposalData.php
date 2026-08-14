@@ -1,5 +1,7 @@
 <?php
+
 // app/Data/ProposalData.php
+
 namespace App\Data;
 
 use Illuminate\Http\UploadedFile;

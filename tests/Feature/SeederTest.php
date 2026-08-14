@@ -1,8 +1,11 @@
 <?php
+
 // tests/Feature/SeederTest.php
 
 use App\Enums\ProposalStatus;
-use App\Models\{Proposal, Tag, User};
+use App\Models\Proposal;
+use App\Models\Tag;
+use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
 describe('demo seed data', function () {

@@ -1,14 +1,17 @@
 <?php
+
 // tests/Unit/TagSynchronizerTest.php
 
-use App\Models\{Proposal, Tag};
+use App\Models\Proposal;
+use App\Models\Tag;
 use App\Services\TagSynchronizer;
+use Database\Seeders\RoleSeeder;
 
 describe('tag synchronizer', function () {
 
     // Proposal::factory() creates its author via User::factory()->speaker(),
     // which calls assignRole() — that needs the role to already exist.
-    beforeEach(fn () => $this->seed(Database\Seeders\RoleSeeder::class));
+    beforeEach(fn () => $this->seed(RoleSeeder::class));
 
     it('attaches existing tags by id and creates new ones by name', function () {
         // Given

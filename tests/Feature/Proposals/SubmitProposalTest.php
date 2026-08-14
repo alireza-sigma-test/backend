@@ -1,14 +1,17 @@
 <?php
+
 // tests/Feature/Proposals/SubmitProposalTest.php
 
-use App\Models\{Tag, User};
+use App\Models\Tag;
+use App\Models\User;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 describe('proposal submission', function () {
 
     beforeEach(function () {
-        $this->seed(Database\Seeders\RoleSeeder::class);
+        $this->seed(RoleSeeder::class);
         Storage::fake('local');
     });
 

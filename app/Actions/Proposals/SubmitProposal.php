@@ -1,11 +1,15 @@
 <?php
+
 // app/Actions/Proposals/SubmitProposal.php
+
 namespace App\Actions\Proposals;
 
 use App\Data\ProposalData;
 use App\Enums\ProposalStatus;
-use App\Models\{Proposal, User};
-use App\Services\{AttachmentStore, TagSynchronizer};
+use App\Models\Proposal;
+use App\Models\User;
+use App\Services\AttachmentStore;
+use App\Services\TagSynchronizer;
 use Illuminate\Support\Facades\DB;
 
 final class SubmitProposal

@@ -1,9 +1,12 @@
 <?php
+
 // database/factories/ProposalFactory.php
+
 namespace Database\Factories;
 
 use App\Enums\ProposalStatus;
-use App\Models\{Proposal, User};
+use App\Models\Proposal;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class ProposalFactory extends Factory

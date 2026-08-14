@@ -1,12 +1,19 @@
 <?php
+
 // app/Http/Controllers/Api/AuthController.php
+
 namespace App\Http\Controllers\Api;
 
-use App\Actions\Auth\{LoginUser, LogoutUser, RegisterUser};
+use App\Actions\Auth\LoginUser;
+use App\Actions\Auth\LogoutUser;
+use App\Actions\Auth\RegisterUser;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\{LoginRequest, RegisterRequest};
+use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RegisterRequest;
 use App\Http\Resources\UserResource;
-use Illuminate\Http\{JsonResponse, Request, Response};
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class AuthController extends Controller
 {

@@ -1,8 +1,11 @@
 <?php
+
 // tests/Unit/ModelsTest.php
 
 use App\Enums\ProposalStatus;
-use App\Models\{Proposal, Tag, User};
+use App\Models\Proposal;
+use App\Models\Tag;
+use App\Models\User;
 
 describe('model contracts', function () {
 

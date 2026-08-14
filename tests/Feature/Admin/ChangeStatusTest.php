@@ -1,12 +1,16 @@
 <?php
+
 // tests/Feature/Admin/ChangeStatusTest.php
 
 use App\Enums\ProposalStatus;
-use App\Models\{Proposal, ProposalStatusChange, User};
+use App\Models\Proposal;
+use App\Models\ProposalStatusChange;
+use App\Models\User;
+use Database\Seeders\RoleSeeder;
 
 describe('admin status changes', function () {
 
-    beforeEach(fn () => $this->seed(Database\Seeders\RoleSeeder::class));
+    beforeEach(fn () => $this->seed(RoleSeeder::class));
 
     it('approves a proposal and writes an audit row', function () {
         // Given

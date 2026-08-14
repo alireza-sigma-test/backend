@@ -1,8 +1,11 @@
 <?php
+
 // app/Services/TagSynchronizer.php
+
 namespace App\Services;
 
-use App\Models\{Proposal, Tag};
+use App\Models\Proposal;
+use App\Models\Tag;
 use Illuminate\Support\Str;
 
 final class TagSynchronizer

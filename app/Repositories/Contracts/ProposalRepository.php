@@ -1,9 +1,12 @@
 <?php
+
 // app/Repositories/Contracts/ProposalRepository.php
+
 namespace App\Repositories\Contracts;
 
 use App\Data\ProposalFilterData;
-use App\Models\{Proposal, User};
+use App\Models\Proposal;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
