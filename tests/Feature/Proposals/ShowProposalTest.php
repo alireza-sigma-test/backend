@@ -22,11 +22,13 @@ describe('proposal detail', function () {
         // When
         $response = $this->actingAs($dana)->getJson("/api/proposals/{$proposal->id}");
 
-        // Then
+        // Then — flat body, not {data: {...}}: matches every other
+        // single-resource response and docs/API.md.
         $response->assertOk()
-            ->assertJsonPath('data.reviews.0.comment', 'Strong opening.')
-            ->assertJsonMissingPath('data.reviews.0.rating')
-            ->assertJsonMissingPath('data.reviews.0.reviewer');
+            ->assertJsonPath('reviews.0.comment', 'Strong opening.')
+            ->assertJsonMissingPath('reviews.0.rating')
+            ->assertJsonMissingPath('reviews.0.reviewer')
+            ->assertJsonMissingPath('data');
     });
 
     it('shows full reviews to a reviewer', function () {
@@ -40,8 +42,22 @@ describe('proposal detail', function () {
 
         // Then
         $response->assertOk()
-            ->assertJsonPath('data.reviews.0.rating', 4)
-            ->assertJsonStructure(['data' => ['reviews' => [['reviewer' => ['id', 'name', 'initials']]]]]);
+            ->assertJsonPath('reviews.0.rating', 4)
+            ->assertJsonStructure(['reviews' => [['reviewer' => ['id', 'name', 'initials']]]]);
+    });
+
+    it('exposes my_review as an explicit null, not an omitted key, for a reviewer who has not reviewed', function () {
+        // Given
+        $maya = User::factory()->reviewer()->create();
+        $proposal = Proposal::factory()->create();
+
+        // When
+        $response = $this->actingAs($maya)->getJson("/api/proposals/{$proposal->id}");
+
+        // Then — assertJsonPath fails on a missing key, so this also proves
+        // the key is present, not just falsy. A typed client can then declare
+        // my_review: Review | null instead of Review | undefined.
+        $response->assertOk()->assertJsonPath('my_review', null);
     });
 
     it('surfaces max_rating from config', function () {

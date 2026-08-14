@@ -44,7 +44,7 @@ class ProposalController extends Controller
         ]);
     }
 
-    public function show(int $proposal, ProposalRepository $repo, Request $request): ProposalResource
+    public function show(int $proposal, ProposalRepository $repo, Request $request): JsonResponse
     {
         // findForViewer scopes to the viewer, then findOrFail()s — a speaker
         // requesting another speaker's proposal 404s, never 403, so the id's
@@ -53,7 +53,11 @@ class ProposalController extends Controller
 
         $this->authorize('view', $model);
 
-        return (new ProposalResource($model))->additional([
+        // Flat, not a {data, max_rating} envelope — ->additional() on a returned
+        // JsonResource wraps it in "data", unlike every other single-resource
+        // response here and in docs/API.md.
+        return response()->json([
+            ...(new ProposalResource($model))->toArray($request),
             'max_rating' => config('review.max_rating'),
         ]);
     }

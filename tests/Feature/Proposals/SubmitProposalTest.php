@@ -192,6 +192,22 @@ describe('proposal submission', function () {
             ->assertJsonPath('attachment', null);
     });
 
+    it('exposes my_review as an explicit null, not an omitted key, right after submission', function () {
+        // Given — SubmitProposal's returned model never eager-loads myReview,
+        // so this is the path that previously omitted the key entirely instead
+        // of an explicit null.
+        $dana = User::factory()->speaker()->create();
+
+        // When
+        $response = $this->actingAs($dana)->postJson('/api/proposals', [
+            'title' => 'Fresh proposal fields',
+            'description' => str_repeat('Concrete, numbers-first content. ', 3),
+        ]);
+
+        // Then
+        $response->assertCreated()->assertJsonPath('my_review', null);
+    });
+
     it('returns a temporary, expiring url for the attachment, not a bare path', function () {
         // Given
         $dana = User::factory()->speaker()->create();

@@ -39,9 +39,15 @@ class ProposalResource extends JsonResource
                 ? null
                 : round((float) $this->reviews_avg_rating, 1),
             'reviews_count' => (int) ($this->reviews_count ?? 0),
+            // Explicit null, not an omitted key, whenever there is an authenticated
+            // viewer — even if myReview was never eager-loaded (e.g. the model
+            // SubmitProposal just created). A typed client can then declare
+            // `my_review: Review | null` instead of `Review | undefined`.
             'my_review' => $this->when(
-                $viewer !== null && $this->relationLoaded('myReview'),
-                fn () => $this->myReview ? new ReviewResource($this->myReview) : null
+                $viewer !== null,
+                fn () => ($this->relationLoaded('myReview') && $this->myReview)
+                    ? new ReviewResource($this->myReview)
+                    : null
             ),
             'reviews' => $this->when(
                 $this->relationLoaded('reviews'),
