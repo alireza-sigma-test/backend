@@ -25,7 +25,7 @@ final class EloquentProposalRepository implements ProposalRepository
                 new ApplySort($filters->sort),
             ])
             ->thenReturn()
-            ->paginate(min($filters->perPage, 50))
+            ->paginate(max(1, min($filters->perPage, 50)))
             ->withQueryString();
     }
 
@@ -56,7 +56,17 @@ final class EloquentProposalRepository implements ProposalRepository
     private function base(User $viewer): Builder
     {
         return $this->scope(Proposal::query(), $viewer)
-            ->with(['author.roles', 'tags', 'media', 'myReview.reviewer'])
+            ->with([
+                'author.roles',
+                'tags',
+                'media',
+                // Constrained by the passed-in viewer, never by auth(). The
+                // resource renders this as `my_review`, so a mismatch here
+                // attributes another reviewer's rating to the caller.
+                'myReview' => fn ($query) => $query
+                    ->where('reviews.user_id', $viewer->id)
+                    ->with('reviewer'),
+            ])
             ->withCount('reviews')
             ->withAvg('reviews', 'rating');
     }

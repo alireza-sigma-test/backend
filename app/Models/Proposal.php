@@ -49,10 +49,19 @@ class Proposal extends Model implements HasMedia
         return $this->hasMany(ProposalStatusChange::class);
     }
 
-    /** The current viewer's own review, if any. Scoped by the authenticated user. */
+    /**
+     * Deliberately UNCONSTRAINED. The viewer is a parameter everywhere else in the
+     * read path, and resolving it here from global auth() state diverges the moment
+     * the caller's $viewer is not the authenticated user — a queued job, a console
+     * command, or a "view as" feature would attach the wrong reviewer's review.
+     *
+     * Callers MUST constrain it at eager-load time; EloquentProposalRepository does.
+     * Never lazy-load this relation — unconstrained, it returns an arbitrary review.
+     * ProposalResource only reads it behind relationLoaded(), so it cannot.
+     */
     public function myReview(): HasOne
     {
-        return $this->hasOne(Review::class)->where('user_id', auth()->id());
+        return $this->hasOne(Review::class);
     }
 
     public function registerMediaCollections(): void

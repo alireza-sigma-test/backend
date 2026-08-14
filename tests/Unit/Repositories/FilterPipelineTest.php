@@ -83,6 +83,47 @@ describe('proposal repository', function () {
         expect($result->first()->title)->toBe('Designing for slow networks');
     });
 
+    it('attaches the viewer\'s own review, not the authenticated user\'s', function () {
+        // Given — the acting user is deliberately NOT the viewer passed to the
+        // repository. Resolving myReview from auth() instead of $viewer
+        // attributes the wrong reviewer's rating to the caller.
+        $jonas = User::factory()->reviewer()->create();
+        $sofia = User::factory()->reviewer()->create();
+        Review::factory()->create([
+            'proposal_id' => $this->observability->id, 'user_id' => $jonas->id, 'rating' => 2,
+        ]);
+        Review::factory()->create([
+            'proposal_id' => $this->observability->id, 'user_id' => $sofia->id, 'rating' => 5,
+        ]);
+        $this->actingAs($jonas);
+
+        // When — asking as Sofia while Jonas is authenticated
+        $page = $this->repo->paginate(new ProposalFilterData(search: 'Observability'), $sofia);
+
+        // Then
+        $proposal = $page->first();
+        expect($proposal->relationLoaded('myReview'))->toBeTrue()
+            ->and($proposal->myReview)->not->toBeNull()
+            ->and($proposal->myReview->user_id)->toBe($sofia->id)
+            ->and($proposal->myReview->rating)->toBe(5);
+    });
+
+    it('returns no myReview for a viewer who has not reviewed', function () {
+        // Given
+        $jonas = User::factory()->reviewer()->create();
+        $sofia = User::factory()->reviewer()->create();
+        Review::factory()->create([
+            'proposal_id' => $this->observability->id, 'user_id' => $jonas->id, 'rating' => 2,
+        ]);
+        $this->actingAs($jonas);
+
+        // When
+        $page = $this->repo->paginate(new ProposalFilterData(search: 'Observability'), $sofia);
+
+        // Then — Jonas's review must not leak into Sofia's view
+        expect($page->first()->myReview)->toBeNull();
+    });
+
     it('keeps counts stable while search and tag filters are applied', function () {
         // When
         $counts = $this->repo->counts($this->reviewer);
@@ -163,12 +204,20 @@ describe('proposal repository', function () {
     it('eager-loads author, tags, media and myReview for every paginated row', function () {
         // ProposalResource (Task 10, reused by Task 12) reads author, tags and
         // media unguarded — without eager-loading here, every row becomes a
-        // fresh N+1 query the moment a paginated list is rendered.
+        // fresh N+1 query the moment a paginated list is rendered. This also
+        // guards the myReview constraint: a closure eager load still runs as
+        // exactly one batched query, never one per row.
+        DB::enableQueryLog();
 
         // When
         $result = $this->repo->paginate(new ProposalFilterData, $this->reviewer);
+        $buildQueryCount = count(DB::getQueryLog());
 
-        DB::enableQueryLog();
+        // Then — a handful of batched queries (count, page, and one per
+        // eager-loaded relation), flat regardless of how many rows came back.
+        expect($buildQueryCount)->toBeLessThanOrEqual(10);
+
+        DB::flushQueryLog();
         foreach ($result as $proposal) {
             expect($proposal->relationLoaded('author'))->toBeTrue()
                 ->and($proposal->author->relationLoaded('roles'))->toBeTrue()
