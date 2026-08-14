@@ -77,4 +77,83 @@ describe('proposal policy', function () {
         // Then
         expect($maya->can('review', $decided))->toBeFalse();
     });
+
+    // `delete` is the only two-branch OR in the policy (admin at any time, OR
+    // owner while pending). A wrong `true` here is a silent permission hole,
+    // so every combination gets an assertion.
+    it('lets an admin delete any proposal regardless of status', function () {
+        // Given
+        $alex = User::factory()->admin()->create();
+
+        // Then
+        expect($alex->can('delete', Proposal::factory()->create()))->toBeTrue()
+            ->and($alex->can('delete', Proposal::factory()->approved()->create()))->toBeTrue()
+            ->and($alex->can('delete', Proposal::factory()->rejected()->create()))->toBeTrue();
+    });
+
+    it('lets the owning speaker delete only while pending', function () {
+        // Given
+        $dana = User::factory()->speaker()->create();
+        $pending = Proposal::factory()->for($dana, 'author')->create();
+        $approved = Proposal::factory()->for($dana, 'author')->approved()->create();
+
+        // Then
+        expect($dana->can('delete', $pending))->toBeTrue()
+            ->and($dana->can('delete', $approved))->toBeFalse();
+    });
+
+    it('refuses deletion by a non-owning speaker or any reviewer', function () {
+        // Given
+        $dana = User::factory()->speaker()->create();
+        $maya = User::factory()->reviewer()->create();
+        $theirs = Proposal::factory()->create();
+
+        // Then
+        expect($dana->can('delete', $theirs))->toBeFalse()
+            ->and($maya->can('delete', $theirs))->toBeFalse();
+    });
+
+    // The `isStaff()` half of view(): a typo in the role name would pass CI
+    // unnoticed without these.
+    it('lets reviewers and admins view any proposal', function () {
+        // Given
+        $maya = User::factory()->reviewer()->create();
+        $alex = User::factory()->admin()->create();
+        $theirs = Proposal::factory()->create();
+
+        // Then
+        expect($maya->can('view', $theirs))->toBeTrue()
+            ->and($alex->can('view', $theirs))->toBeTrue();
+    });
+
+    it('allows only speakers to create proposals', function () {
+        // Given
+        $roles = [
+            'speaker' => User::factory()->speaker()->create(),
+            'reviewer' => User::factory()->reviewer()->create(),
+            'admin' => User::factory()->admin()->create(),
+        ];
+
+        // Then
+        expect($roles['speaker']->can('create', Proposal::class))->toBeTrue()
+            ->and($roles['reviewer']->can('create', Proposal::class))->toBeFalse()
+            ->and($roles['admin']->can('create', Proposal::class))->toBeFalse();
+    });
+
+    it('allows only admins to view the status history', function () {
+        // Given
+        $proposal = Proposal::factory()->create();
+
+        // Then
+        expect(User::factory()->admin()->create()->can('viewHistory', $proposal))->toBeTrue()
+            ->and(User::factory()->reviewer()->create()->can('viewHistory', $proposal))->toBeFalse()
+            ->and(User::factory()->speaker()->create()->can('viewHistory', $proposal))->toBeFalse();
+    });
+
+    it('allows every role to list proposals, narrowing happens in the repository', function () {
+        // Then
+        expect(User::factory()->speaker()->create()->can('viewAny', Proposal::class))->toBeTrue()
+            ->and(User::factory()->reviewer()->create()->can('viewAny', Proposal::class))->toBeTrue()
+            ->and(User::factory()->admin()->create()->can('viewAny', Proposal::class))->toBeTrue();
+    });
 });
