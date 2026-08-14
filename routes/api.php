@@ -1,7 +1,7 @@
 <?php
 // routes/api.php
 
-use App\Http\Controllers\Api\{AuthController, ProposalController, ReviewController, TagController};
+use App\Http\Controllers\Api\{AuthController, ProposalController, ReviewController, StatusController, TagController};
 use Illuminate\Support\Facades\Route;
 
 // Named limiters, not the inline `throttle:6,1` form. Laravel keys an unnamed
@@ -19,6 +19,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/proposals', [ProposalController::class, 'index']);
     Route::get('/proposals/{proposal}', [ProposalController::class, 'show'])->whereNumber('proposal');
     Route::post('/proposals/{proposal}/reviews', [ReviewController::class, 'store'])->whereNumber('proposal');
+    Route::patch('/proposals/{proposal}/status', [StatusController::class, 'update'])->whereNumber('proposal');
 
     Route::get('/tags', [TagController::class, 'index']);
 });
