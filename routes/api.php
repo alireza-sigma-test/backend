@@ -4,8 +4,12 @@
 use App\Http\Controllers\Api\AuthController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
+// Named limiters, not the inline `throttle:6,1` form. Laravel keys an unnamed
+// throttle by domain+IP only — never the route path — so two routes sharing the
+// literal string share one bucket, and failed registrations would lock a user
+// out of logging in.
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

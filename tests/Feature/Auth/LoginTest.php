@@ -60,4 +60,13 @@ describe('login', function () {
     it('refuses /me without a token', function () {
         $this->getJson('/api/me')->assertUnauthorized();
     });
+
+    it('returns 401, not a 500 stack trace, for a browser-style unauthenticated request', function () {
+        // When — deliberately no Accept: application/json, unlike getJson()
+        $response = $this->get('/api/me');
+
+        // Then
+        $response->assertStatus(401);
+        expect($response->getContent())->not->toContain('vendor/laravel/framework');
+    });
 });

@@ -31,8 +31,11 @@ class AuthController extends Controller
         return response()->noContent();
     }
 
-    public function me(Request $request): UserResource
+    public function me(Request $request): JsonResponse
     {
-        return new UserResource($request->user()->load('roles'));
+        // Flat, not JsonResource's default `data` wrapper: /register and /login
+        // both return a bare user object, and API.md shows no single resource
+        // wrapped in `data`. One shape for one resource.
+        return response()->json(new UserResource($request->user()->load('roles')));
     }
 }
