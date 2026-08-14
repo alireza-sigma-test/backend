@@ -1,3 +1,8 @@
+# Without an explicit name, Compose derives the project from the directory
+# basename ("backend") — a namespace another project on this machine already
+# occupies. `docker compose down -v` would then delete THEIR volumes.
+name: proposal-review
+
 services:
   nginx:
     image: nginx:1.27-alpine
@@ -9,20 +14,20 @@ services:
 
   php:
     build: { context: ., dockerfile: docker/php/Dockerfile, target: app }
-    # Matches php-fpm's runtime UID/GID to the host user that owns the
-    # bind-mounted source tree (default 1000, the common single-user Linux
-    # UID). Without this, php-fpm's workers run as www-data (uid 82) and
-    # cannot write storage/framework or bootstrap/cache, which are owned by
-    # the host user with group/other permissions of only 775.
+    # Run as the host user so files written through the bind mount are owned by
+    # them, not by uid 82. The Makefile exports WWWUSER/WWWGROUP from `id`.
     user: "${WWWUSER:-1000}:${WWWGROUP:-1000}"
+    environment:
+      # That UID has no /etc/passwd entry, so $HOME resolves to "/" which is
+      # root-owned and unwritable. Composer needs a writable home or every
+      # `composer` call inside the container fails.
+      HOME: /tmp
+      COMPOSER_HOME: /tmp/composer
     volumes: [".:/var/www/html"]
     depends_on:
       mysql: { condition: service_healthy }
       redis: { condition: service_started }
 
-  # Host ports are shifted off the defaults: another project on this machine
-  # already publishes 3306, 1025 and 8025. Container-to-container traffic is
-  # unaffected — the app still reaches mysql:3306 and mailpit:1025.
   mysql:
     image: mysql:8.4
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
@@ -31,7 +36,7 @@ services:
       MYSQL_USER: proposal
       MYSQL_PASSWORD: secret
       MYSQL_ROOT_PASSWORD: root
-    ports: ["3307:3306"]
+    ports: ["3306:3306"]
     volumes:
       - mysqldata:/var/lib/mysql
       - ./docker/mysql/init-testing-db.sql:/docker-entrypoint-initdb.d/10-testing-db.sql:ro
@@ -57,7 +62,7 @@ services:
 
   mailpit:
     image: axllent/mailpit:latest
-    ports: ["8026:8025", "1026:1025"]
+    ports: ["8025:8025", "1025:1025"]
 
 volumes:
   mysqldata:
