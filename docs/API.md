@@ -128,7 +128,7 @@ Role: `speaker`. `multipart/form-data` when a file is attached.
 | Field | Type | Rules |
 |---|---|---|
 | `title` | string | required, min 8, max 120 |
-| `description` | string | required, min 40 |
+| `description` | string | required, min 40, max 20000 |
 | `tags[]` | array | optional; each item is an existing tag id **or** a new tag name (max 40). New names are created and attached in one transaction |
 | `attachment` | file | optional, `mimes:pdf`, `max:4096` (KB) |
 

@@ -11,11 +11,19 @@ class IndexProposalRequest extends FormRequest
 {
     public function rules(): array
     {
+        // exists:users,id is skipped for speakers: their author_id is discarded
+        // in toData() below, so validating it against the users table would only
+        // serve as a user-id enumeration oracle for a value that is never used.
+        $authorId = ['sometimes', 'nullable', 'integer'];
+        if (! $this->user()->hasRole(UserRole::Speaker->value)) {
+            $authorId[] = 'exists:users,id';
+        }
+
         return [
             'search' => ['sometimes', 'nullable', 'string', 'max:120'],
             'tags' => ['sometimes', 'nullable', 'string', 'max:255'],
             'status' => ['sometimes', 'nullable', Rule::in(ProposalStatus::values())],
-            'author_id' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
+            'author_id' => $authorId,
             'sort' => ['sometimes', Rule::in(['newest', 'oldest', 'rating'])],
             // Deliberately no `max:50` here: the repository's
             // max(1, min($perPage, 50)) is the single enforcement point, so

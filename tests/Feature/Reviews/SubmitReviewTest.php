@@ -58,13 +58,25 @@ describe('review submission', function () {
     });
 
     it('refuses a review from a speaker', function () {
-        // Given
+        // Given — must be viewable to the speaker (their own proposal) so this
+        // exercises the review-policy denial, not the view-scoping 404 below.
         $dana = User::factory()->speaker()->create();
-        $proposal = Proposal::factory()->create();
+        $proposal = Proposal::factory()->for($dana, 'author')->create();
 
         // When / Then
         $this->actingAs($dana)->postJson("/api/proposals/{$proposal->id}/reviews", ['rating' => 4])
             ->assertForbidden();
+    });
+
+    it('returns 404 for another speakers proposal instead of 403, so existence is not disclosed', function () {
+        // Given — a speaker can never view this proposal, so the route must
+        // 404 before the review policy ever runs, matching ProposalController::show.
+        $dana = User::factory()->speaker()->create();
+        $theirs = Proposal::factory()->create();
+
+        // When / Then
+        $this->actingAs($dana)->postJson("/api/proposals/{$theirs->id}/reviews", ['rating' => 4])
+            ->assertNotFound();
     });
 
     it('refuses a review from an admin', function () {

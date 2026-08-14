@@ -12,7 +12,7 @@ class StoreProposalRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'min:8', 'max:120'],
-            'description' => ['required', 'string', 'min:40'],
+            'description' => ['required', 'string', 'min:40', 'max:20000'],
             'tags' => ['sometimes', 'array', 'max:10'],
             // Ids and free-text names share this array. A plain `string` rule
             // would reject genuine tag ids: `$tag->id` round-trips through a

@@ -101,6 +101,27 @@ describe('proposal index', function () {
             ->assertJsonPath('data.0.author.id', $dana->id);
     });
 
+    it('does not validate author_id existence for a speaker, avoiding a user-id enumeration oracle', function () {
+        // Given — a speaker's author_id is discarded in toData() regardless of
+        // this request, so validating its existence would only tell an attacker
+        // which ids are real users.
+        $dana = User::factory()->speaker()->create();
+
+        // When / Then — a nonexistent id must not 422.
+        $this->actingAs($dana)->getJson('/api/proposals?author_id=999999')
+            ->assertOk();
+    });
+
+    it('still validates author_id existence for a reviewer', function () {
+        // Given — reviewers/admins get a real affordance, so this one must
+        // still reject a nonexistent id.
+        $maya = User::factory()->reviewer()->create();
+
+        // When / Then
+        $this->actingAs($maya)->getJson('/api/proposals?author_id=999999')
+            ->assertStatus(422)->assertJsonValidationErrors('author_id');
+    });
+
     it('rejects an unknown sort value', function () {
         // Given
         $reviewer = User::factory()->reviewer()->create();

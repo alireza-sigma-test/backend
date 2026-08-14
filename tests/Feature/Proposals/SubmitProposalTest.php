@@ -135,6 +135,20 @@ describe('proposal submission', function () {
         $response->assertStatus(422)->assertJsonValidationErrors(['title', 'description']);
     });
 
+    it('rejects a description over the max length instead of 500ing on an oversized query', function () {
+        // Given — no upper bound previously existed on a TEXT column; a very
+        // large payload risked a database-level 500 leaking connection details.
+        $dana = User::factory()->speaker()->create();
+
+        // When
+        $response = $this->actingAs($dana)->postJson('/api/proposals', [
+            'title' => 'A valid title here', 'description' => str_repeat('a', 20001),
+        ]);
+
+        // Then
+        $response->assertStatus(422)->assertJsonValidationErrors('description');
+    });
+
     // The following close a gap between the brief's shipped resource shape and
     // its given test list: `can`, `average_rating`/`reviews_count`, and the
     // signed attachment URL are all named in the interface but none of the

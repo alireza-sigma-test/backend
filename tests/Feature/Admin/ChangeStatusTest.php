@@ -109,6 +109,17 @@ describe('admin status changes', function () {
             ->assertForbidden();
     });
 
+    it('returns 404 for another speakers proposal instead of 403, so existence is not disclosed', function () {
+        // Given — a speaker can never view this proposal, so the route must
+        // 404 before the changeStatus policy ever runs, matching ProposalController::show.
+        $dana = User::factory()->speaker()->create();
+        $theirs = Proposal::factory()->create();
+
+        // When / Then
+        $this->actingAs($dana)->patchJson("/api/proposals/{$theirs->id}/status", ['status' => 'approved'])
+            ->assertNotFound();
+    });
+
     it('rejects an unknown status value', function () {
         // Given
         $alex = User::factory()->admin()->create();
