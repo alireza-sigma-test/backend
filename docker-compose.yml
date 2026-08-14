@@ -36,7 +36,9 @@ services:
       MYSQL_USER: proposal
       MYSQL_PASSWORD: secret
       MYSQL_ROOT_PASSWORD: root
-    ports: ["3306:3306"]
+    # Parameterised, not hardcoded: a reviewer with a local MySQL already on
+    # 3306 would otherwise be blocked before step one.
+    ports: ["${DB_HOST_PORT:-3306}:3306"]
     volumes:
       - mysqldata:/var/lib/mysql
       - ./docker/mysql/init-testing-db.sql:/docker-entrypoint-initdb.d/10-testing-db.sql:ro
@@ -61,7 +63,7 @@ services:
       mysql: { condition: service_healthy }
 
   mailpit:
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:v1.30.6
     ports: ["8025:8025", "1025:1025"]
 
 volumes:
