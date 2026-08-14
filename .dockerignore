@@ -1,0 +1,8 @@
+.git
+.github
+vendor
+node_modules
+storage/logs/*
+storage/framework/cache/*
+.env
+.superpowers
