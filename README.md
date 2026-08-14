@@ -73,9 +73,9 @@ The layering is enforced by Pest arch tests, not just described here — see
 
 ## Notable decisions
 
-- **Bearer tokens, not cookie sessions.** `API.md` specifies Sanctum bearer tokens.
-  Laravel's own guidance prefers stateful cookies for first-party SPAs; the contract
-  wins, and the SPA-mode frontend means no server-to-server hop needs them.
+- **Bearer tokens, not cookie sessions.** [`docs/API.md`](docs/API.md) specifies Sanctum
+  bearer tokens. Laravel's own guidance prefers stateful cookies for first-party SPAs;
+  the contract wins, and the SPA-mode frontend means no server-to-server hop needs them.
 - **No `role` column.** Roles come from `spatie/laravel-permission`; `UserResource`
   derives `role` from the pivot so the API shape is unchanged.
 - **`average_rating` is never denormalised** — `withAvg` on the query, so no
@@ -83,8 +83,8 @@ The layering is enforced by Pest arch tests, not just described here — see
 - **Reviewer attribution is never disclosed to speakers.** On their own proposal a speaker
   sees each review's comment and date, never the score or its author — enforced server-side
   in the resource, covered by a test. Aggregates (`average_rating`, `reviews_count`) are
-  visible to them, as `API.md` specifies; with one review the average necessarily equals that
-  score, so the guarantee is anonymity, not secrecy.
+  visible to them, as [`docs/API.md`](docs/API.md) specifies; with one review the average
+  necessarily equals that score, so the guarantee is anonymity, not secrecy.
 - **Anyone can register as an administrator.** This is a deliberate demo affordance so
   a reviewer can reach every role without seeded credentials. In production, admin
   creation would be by invitation or console command only.
@@ -97,8 +97,23 @@ curated rather than exhaustive: every policy denial has a test.
 
 Tests are backend-only by deliberate scope; the frontend ships without a test suite.
 
+## API contract
+
+[`docs/API.md`](docs/API.md) is the contract this implementation follows — resource shapes,
+every endpoint, validation rules and status codes. Endpoints marked there but absent here are
+listed under *Not built yet*.
+
 ## Not built yet
 
-Real-time updates (Reverb), AI summarisation, persisted notifications, and the
-activity feed are designed but not implemented. See
-`docs/superpowers/specs/2026-08-14-proposal-review-design.md`.
+Deliberately out of scope for this submission, in planned order:
+
+| | |
+|---|---|
+| `GET /proposals/{id}/history`, `GET /stats`, `rating_distribution` | endpoints designed, schema already in place |
+| Real-time updates over Laravel Reverb | private channels per user and per role |
+| AI proposal summarisation | Laravel AI SDK agent, PDF as native document input |
+| Persisted notifications and the activity feed | |
+| OpenAPI generation via `dedoc/scramble` | |
+
+The build was tiered so that every stopping point is coherent: migrations are additive per
+tier, so there are no unused columns for features that were never built.
