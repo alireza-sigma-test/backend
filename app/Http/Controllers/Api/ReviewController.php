@@ -25,9 +25,6 @@ class ReviewController extends Controller
                 ? null
                 : round((float) $proposal->reviews_avg_rating, 1),
             'reviews_count' => (int) $proposal->reviews_count,
-            // Without this flag, json_encode drops the trailing zero from a
-            // whole-number float (3.0 -> 3), and a client parsing the response
-            // sees an int where the contract promises a one-decimal average.
-        ], 201, [], JSON_PRESERVE_ZERO_FRACTION);
+        ], 201);
     }
 }

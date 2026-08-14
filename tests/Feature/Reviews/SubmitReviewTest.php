@@ -22,7 +22,7 @@ describe('review submission', function () {
         $response->assertCreated()
             ->assertJsonPath('review.rating', 4)
             ->assertJsonPath('reviews_count', 2)
-            ->assertJsonPath('average_rating', 3.0);
+            ->assertJsonPath('average_rating', 3);
     });
 
     it('updates the existing review instead of creating a second one', function () {
@@ -35,20 +35,26 @@ describe('review submission', function () {
         $response = $this->actingAs($maya)->postJson("/api/proposals/{$proposal->id}/reviews", ['rating' => 5]);
 
         // Then
-        $response->assertCreated()->assertJsonPath('reviews_count', 1);
+        $response->assertCreated()
+            ->assertJsonPath('reviews_count', 1)
+            ->assertJsonPath('average_rating', 5);
         expect(Review::where('proposal_id', $proposal->id)->count())->toBe(1)
             ->and(Review::where('proposal_id', $proposal->id)->first()->rating)->toBe(5);
     });
 
     it('rejects a rating above max_rating', function () {
-        // Given
-        config()->set('review.max_rating', 5);
+        // Given — a non-default bound, so this only proves the rule reads
+        // config rather than passing coincidentally against the default of 5.
+        config()->set('review.max_rating', 3);
         $maya = User::factory()->reviewer()->create();
         $proposal = Proposal::factory()->create();
 
         // When / Then
-        $this->actingAs($maya)->postJson("/api/proposals/{$proposal->id}/reviews", ['rating' => 6])
+        $this->actingAs($maya)->postJson("/api/proposals/{$proposal->id}/reviews", ['rating' => 4])
             ->assertStatus(422)->assertJsonValidationErrors('rating');
+
+        $this->actingAs($maya)->postJson("/api/proposals/{$proposal->id}/reviews", ['rating' => 3])
+            ->assertCreated();
     });
 
     it('refuses a review from a speaker', function () {
