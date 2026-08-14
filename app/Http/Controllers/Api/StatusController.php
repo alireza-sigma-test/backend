@@ -16,11 +16,8 @@ class StatusController extends Controller
 {
     public function update(ChangeStatusRequest $request, Proposal $proposal, ChangeProposalStatus $action): JsonResponse
     {
-        // Proposal is bound implicitly and unscoped, unlike ProposalController::show's
-        // findForViewer(). Without this check a speaker gets 403 for a real id and 404
-        // for a fake one, enumerating the id space show() deliberately hides.
+        // 404, not 403 — mirrors ProposalController::show's own existence-hiding scope.
         abort_unless($request->user()->can('view', $proposal), 404);
-
         $this->authorize('changeStatus', $proposal);
 
         $admin = $request->user();

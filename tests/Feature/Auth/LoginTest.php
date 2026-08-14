@@ -36,14 +36,26 @@ describe('login', function () {
         $response->assertStatus(422)->assertJsonValidationErrors('email');
     });
 
-    it('returns the same error for an unknown email', function () {
-        // When
-        $response = $this->postJson('/api/login', [
+    it('returns the same error for an unknown email as for a wrong password', function () {
+        // Given — a real user, so the wrong-password branch has something to compare.
+        User::factory()->speaker()->create(['email' => 'dana@example.com']);
+
+        // When — both branches captured in the same test, not two separate ones,
+        // so a divergence between them fails a single assertion instead of two
+        // individually-passing tests that never get compared to each other.
+        $wrongPassword = $this->postJson('/api/login', [
+            'email' => 'dana@example.com', 'password' => 'wrong-password',
+        ]);
+        $unknownEmail = $this->postJson('/api/login', [
             'email' => 'nobody@example.com', 'password' => 'password',
         ]);
 
-        // Then
-        $response->assertStatus(422)->assertJsonValidationErrors('email');
+        // Then — this is the assertion that actually exercises LoginUser::DUMMY_HASH:
+        // asserting each response's status/field in isolation would stay green even
+        // if the two branches returned different messages.
+        $wrongPassword->assertStatus(422)->assertJsonValidationErrors('email');
+        $unknownEmail->assertStatus(422)->assertJsonValidationErrors('email');
+        expect($wrongPassword->json('errors.email'))->toBe($unknownEmail->json('errors.email'));
     });
 
     it('revokes the current token on logout', function () {

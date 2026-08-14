@@ -15,11 +15,8 @@ class ReviewController extends Controller
 {
     public function store(StoreReviewRequest $request, Proposal $proposal, SubmitReview $action): JsonResponse
     {
-        // Proposal is bound implicitly and unscoped, unlike ProposalController::show's
-        // findForViewer(). Without this check a speaker gets 403 for a real id and 404
-        // for a fake one, enumerating the id space show() deliberately hides.
+        // 404, not 403 — mirrors ProposalController::show's own existence-hiding scope.
         abort_unless($request->user()->can('view', $proposal), 404);
-
         $this->authorize('review', $proposal);
 
         $review = $action->handle($request->user(), $proposal, $request->toData());
