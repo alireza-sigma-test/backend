@@ -137,7 +137,14 @@ describe('admin status changes', function () {
 
         // When
         $this->actingAs($alex)->patchJson("/api/proposals/{$approved->id}/status", ['status' => 'approved'])
-            ->assertOk();
+            ->assertOk()
+            // Timing-free proof that changed_at is sourced from the audit row:
+            // no row exists for a no-op, so it must be null. A recomputed now()
+            // would return a timestamp here regardless. The dedicated
+            // changed_at test cannot catch that regression on its own, because
+            // toIso8601String() is second-precision and both clock reads land
+            // in the same second.
+            ->assertJsonPath('changed_at', null);
 
         // Then
         expect(ProposalStatusChange::count())->toBe(0);
