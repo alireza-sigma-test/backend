@@ -16,12 +16,15 @@ class StatusController extends Controller
         $this->authorize('changeStatus', $proposal);
 
         $admin = $request->user();
-        $updated = $action->handle($admin, $proposal, $request->toData());
+        ['proposal' => $updated, 'change' => $change] = $action->handle($admin, $proposal, $request->toData());
 
         return response()->json([
             'proposal' => new ProposalResource($updated->loadCount('reviews')->loadAvg('reviews', 'rating')),
             'changed_by' => new UserResource($admin->load('roles')),
-            'changed_at' => now()->toIso8601String(),
+            // The audit row's own timestamp, not a second now(). /history will
+            // read changed_at from the same column, so both endpoints must mean
+            // the same thing. Null only for a no-op, which records nothing.
+            'changed_at' => $change?->created_at?->toIso8601String(),
         ]);
     }
 }

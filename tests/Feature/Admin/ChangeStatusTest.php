@@ -44,6 +44,49 @@ describe('admin status changes', function () {
         expect(ProposalStatusChange::sole()->note)->toBe('Overlaps with an accepted talk.');
     });
 
+    it('reports changed_at from the audit row, not a recomputed clock', function () {
+        // Given
+        $alex = User::factory()->admin()->create();
+        $proposal = Proposal::factory()->create();
+
+        // When
+        $response = $this->actingAs($alex)->patchJson("/api/proposals/{$proposal->id}/status", [
+            'status' => 'approved',
+        ]);
+
+        // Then — the response must echo the persisted row, not a second now()
+        $response->assertOk();
+        expect($response->json('changed_at'))
+            ->toBe(ProposalStatusChange::sole()->created_at->toIso8601String());
+    });
+
+    it('records the true prior status when it was not pending', function () {
+        // Given — every other test starts from pending, so `from` could be
+        // hardcoded and still pass. This one starts from approved.
+        $alex = User::factory()->admin()->create();
+        $proposal = Proposal::factory()->approved()->create();
+
+        // When
+        $this->actingAs($alex)->patchJson("/api/proposals/{$proposal->id}/status", [
+            'status' => 'rejected',
+        ])->assertOk();
+
+        // Then
+        $audit = ProposalStatusChange::sole();
+        expect($audit->from)->toBe(ProposalStatus::Approved)
+            ->and($audit->to)->toBe(ProposalStatus::Rejected);
+    });
+
+    it('rejects a request with no status at all', function () {
+        // Given
+        $alex = User::factory()->admin()->create();
+        $proposal = Proposal::factory()->create();
+
+        // When / Then — the `required` branch, distinct from an unknown value
+        $this->actingAs($alex)->patchJson("/api/proposals/{$proposal->id}/status", [])
+            ->assertStatus(422)->assertJsonValidationErrors('status');
+    });
+
     it('refuses a status change from a reviewer', function () {
         // Given
         $maya = User::factory()->reviewer()->create();
