@@ -3,6 +3,7 @@
 
 use App\Enums\ProposalStatus;
 use App\Models\{Proposal, Tag, User};
+use Illuminate\Support\Facades\Hash;
 
 describe('demo seed data', function () {
 
@@ -27,6 +28,28 @@ describe('demo seed data', function () {
         User::with('roles')->get()->each(
             fn (User $u) => expect($u->getRoleNames())->toHaveCount(1)
         );
+    });
+
+    it('gives every seeded user the documented demo password', function () {
+        // When
+        $this->seed();
+
+        // Then — this is the credential the README hands a reviewer; if a factory
+        // edit silently changes it, every demo login breaks with a green suite.
+        User::all()->each(
+            fn (User $u) => expect(Hash::check('password', $u->password))->toBeTrue()
+        );
+    });
+
+    it('is safe to run twice, as `make up` does', function () {
+        // Given
+        $this->seed();
+
+        // When / Then — no duplicate-key exception on the unique users.email index
+        $this->seed();
+
+        expect(User::count())->toBe(8)
+            ->and(Proposal::count())->toBe(6);
     });
 
     it('seeds a proposal with three reviews averaging 4.0', function () {

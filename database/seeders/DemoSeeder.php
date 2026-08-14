@@ -5,18 +5,25 @@ namespace Database\Seeders;
 use App\Enums\ProposalStatus;
 use App\Models\{Proposal, Review, Tag, User};
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class DemoSeeder extends Seeder
 {
     public function run(): void
     {
+        // `make up` runs `migrate --force --seed`, and Laravel calls db:seed
+        // unconditionally — it does not check whether migrations actually ran.
+        // Without this guard a second `make up` against an existing volume dies
+        // on the unique index over users.email.
+        if (User::query()->exists()) {
+            return;
+        }
+
         $speakers = collect([
             'Dana Roth' => 'dana@example.com',
             'Ilya Petrov' => 'ilya@example.com',
             'Nia Okafor' => 'nia@example.com',
         ])->map(fn ($email, $name) => User::factory()->speaker()->create([
-            'name' => $name, 'email' => $email, 'password' => Hash::make('password'),
+            'name' => $name, 'email' => $email,
         ]));
 
         $reviewers = collect([
@@ -25,11 +32,11 @@ class DemoSeeder extends Seeder
             'Sofia Lindqvist' => 'sofia@example.com',
             'Theo Nakamura' => 'theo@example.com',
         ])->map(fn ($email, $name) => User::factory()->reviewer()->create([
-            'name' => $name, 'email' => $email, 'password' => Hash::make('password'),
+            'name' => $name, 'email' => $email,
         ]));
 
         User::factory()->admin()->create([
-            'name' => 'Alex Vance', 'email' => 'alex@example.com', 'password' => Hash::make('password'),
+            'name' => 'Alex Vance', 'email' => 'alex@example.com',
         ]);
 
         $tags = collect(['Technology', 'Architecture', 'Health', 'Business', 'Design', 'Testing'])
@@ -54,18 +61,26 @@ class DemoSeeder extends Seeder
                 'status' => $status,
             ]);
 
-            $proposal->tags()->attach($tagNames === [] ? [] : $tags->only($tagNames)->pluck('id'));
+            $proposal->tags()->attach($tags->only($tagNames)->pluck('id'));
         }
 
         // The detail screen shows this proposal with three reviews averaging 4.0.
         $flagship = Proposal::where('title', 'Observability at scale without the bill')->firstOrFail();
 
-        foreach ([['Jonas Adeyemi', 4], ['Sofia Lindqvist', 5], ['Theo Nakamura', 3]] as [$name, $rating]) {
+        // Distinct comments per reviewer: screen 04 renders all three together,
+        // and three identical paragraphs read as placeholder data.
+        $reviewRows = [
+            ['Jonas Adeyemi', 4, 'Strong and specific. The cost breakdown is the part I would put on the main stage; the opening could be tighter.'],
+            ['Sofia Lindqvist', 5, 'Concrete, numbers-first, and the spreadsheet giveaway makes it actionable. Main stage.'],
+            ['Theo Nakamura', 3, 'Good material, but the second half restates the first. Needs a sharper closing claim.'],
+        ];
+
+        foreach ($reviewRows as [$name, $rating, $comment]) {
             Review::create([
                 'proposal_id' => $flagship->id,
                 'user_id' => $reviewers->firstWhere('name', $name)->id,
                 'rating' => $rating,
-                'comment' => 'Concrete, numbers-first, and the spreadsheet giveaway makes it actionable.',
+                'comment' => $comment,
             ]);
         }
     }
