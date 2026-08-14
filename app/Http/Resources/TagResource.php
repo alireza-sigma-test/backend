@@ -10,11 +10,11 @@ class TagResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        return array_filter([
+        return [
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
             'proposals_count' => $this->whenCounted('proposals'),
-        ], fn ($v) => $v !== null);
+        ];
     }
 }

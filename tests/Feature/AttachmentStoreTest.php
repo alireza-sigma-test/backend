@@ -3,18 +3,7 @@
 
 use App\Models\Proposal;
 use App\Services\AttachmentStore;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-
-// UploadedFile::fake()->create($name, $kb, $mimeType) only sets a *reported*
-// mime type — the underlying temp file is empty. Media Library detects the
-// real mime type from file bytes (via finfo) once Storage::fake() writes it
-// to disk, so an empty file resolves to application/x-empty and is rejected.
-// createWithContent() with a real PDF header makes finfo detection succeed.
-function fakePdf(string $name): UploadedFile
-{
-    return UploadedFile::fake()->createWithContent($name, "%PDF-1.4\n%fake pdf for testing\n".str_repeat('a', 200));
-}
 
 describe('attachment store', function () {
 

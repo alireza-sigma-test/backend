@@ -5,26 +5,6 @@ use App\Models\{Tag, User};
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
-// UploadedFile::fake()->create() writes a ZERO-BYTE file. Media Library sniffs
-// the real bytes, so an empty file resolves to application/x-empty and the
-// PDF-only collection rejects it — even though Laravel's `mimetypes` rule
-// passes, because that reads the *declared* mime. Real content is required.
-// ->size() then reports whatever size the validation rules need.
-//
-// Guarded: tests/Feature/AttachmentStoreTest.php declares an identical
-// top-level fakePdf() helper. Pest loads every test file into one process
-// regardless of --filter, so two unguarded global functions of the same
-// name fatal with "Cannot redeclare function".
-if (! function_exists('fakePdf')) {
-    function fakePdf(string $name): UploadedFile
-    {
-        return UploadedFile::fake()->createWithContent(
-            $name,
-            "%PDF-1.4\n%fake pdf for testing\n".str_repeat('a', 200),
-        );
-    }
-}
-
 describe('proposal submission', function () {
 
     beforeEach(function () {
