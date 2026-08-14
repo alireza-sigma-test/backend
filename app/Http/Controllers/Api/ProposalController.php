@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Actions\Proposals\SubmitProposal;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreProposalRequest;
+use App\Http\Requests\{IndexProposalRequest, StoreProposalRequest};
 use App\Http\Resources\ProposalResource;
 use App\Models\Proposal;
-use Illuminate\Http\JsonResponse;
+use App\Repositories\Contracts\ProposalRepository;
+use Illuminate\Http\{JsonResponse, Request};
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ProposalController extends Controller
 {
@@ -21,5 +23,34 @@ class ProposalController extends Controller
         // AuthController::me(). ->response() would wrap this in {"data": {...}}
         // since JsonResource::$wrap defaults to 'data'.
         return response()->json(new ProposalResource($proposal), 201);
+    }
+
+    public function index(IndexProposalRequest $request, ProposalRepository $repo): AnonymousResourceCollection
+    {
+        $this->authorize('viewAny', Proposal::class);
+
+        $viewer = $request->user();
+        $page = $repo->paginate($request->toData(), $viewer);
+
+        return ProposalResource::collection($page)->additional([
+            // Deliberately unfiltered by search/tags/status — see
+            // EloquentProposalRepository::counts(). The controller must not
+            // re-derive or re-filter this itself.
+            'counts' => $repo->counts($viewer),
+        ]);
+    }
+
+    public function show(int $proposal, ProposalRepository $repo, Request $request): ProposalResource
+    {
+        // findForViewer scopes to the viewer, then findOrFail()s — a speaker
+        // requesting another speaker's proposal 404s, never 403, so the id's
+        // existence is not disclosed.
+        $model = $repo->findForViewer($proposal, $request->user());
+
+        $this->authorize('view', $model);
+
+        return (new ProposalResource($model))->additional([
+            'max_rating' => config('review.max_rating'),
+        ]);
     }
 }

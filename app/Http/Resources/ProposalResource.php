@@ -40,6 +40,23 @@ class ProposalResource extends JsonResource
                 $viewer !== null && $this->relationLoaded('myReview'),
                 fn () => $this->myReview ? new ReviewResource($this->myReview) : null
             ),
+            'reviews' => $this->when(
+                $this->relationLoaded('reviews'),
+                fn () => $this->reviews->map(function ($review) use ($viewer) {
+                    // The owning speaker sees the comment and the date, but never
+                    // the score or who wrote it. Enforced here, server-side, never
+                    // by the client hiding fields.
+                    $isOwningSpeaker = $viewer !== null && $viewer->id === $this->user_id;
+
+                    return $isOwningSpeaker
+                        ? [
+                            'id' => $review->id,
+                            'comment' => $review->comment,
+                            'created_at' => $review->created_at?->toIso8601String(),
+                        ]
+                        : (new ReviewResource($review))->toArray(request());
+                })->values()
+            ),
             // Generated from the policy so the client never infers permission
             // from a role string. Rendering only — every mutating route still
             // calls Gate::authorize.
