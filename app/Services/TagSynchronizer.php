@@ -32,13 +32,18 @@ final class TagSynchronizer
                 continue;
             }
 
-            // Truncate FIRST, then derive the slug from that same value. Slugging
-            // the untruncated name overflows the 40-char `slug` column and
-            // surfaces as a raw QueryException on free-text client input.
+            // Both columns are 40 chars and BOTH must be bounded independently.
+            // Slugging the untruncated name overflows `slug`; but bounding only
+            // the name is not enough either, because Str::slug() transliterates
+            // and some characters expand to two ASCII ones (ß→ss, æ→ae, œ→oe,
+            // ĳ→ij) — so a 40-character name can still yield an 80-character
+            // slug. Either overflow surfaces as a raw QueryException on
+            // free-text client input. Trailing dashes from cutting mid-word are
+            // trimmed so the slug stays canonical.
             $name = Str::limit(trim((string) $tag), 40, '');
-            $slug = Str::slug($name);
+            $slug = trim(Str::limit(Str::slug($name), 40, ''), '-');
 
-            // A name of pure punctuation slugs to an empty string, which would
+            // A pure-punctuation name slugs to an empty string, which would
             // otherwise collide every such tag onto one row.
             if ($name === '' || $slug === '') {
                 continue;

@@ -51,6 +51,20 @@ describe('tag synchronizer', function () {
             ->and($proposal->tags()->count())->toBe(1);
     });
 
+    it('keeps a transliterating name within the slug column limit', function () {
+        // Given — Str::slug() expands ß to "ss", so 40 of them slug to 80 chars
+        // and overflow the column unless the slug is bounded in its own right.
+        $proposal = Proposal::factory()->create();
+
+        // When
+        app(TagSynchronizer::class)->sync($proposal, [str_repeat('ß', 40)]);
+
+        // Then
+        $tag = Tag::sole();
+        expect(strlen($tag->slug))->toBeLessThanOrEqual(40)
+            ->and($proposal->tags()->count())->toBe(1);
+    });
+
     it('keeps an over-long tag name within both column limits', function () {
         // Given — tag names are free text from the client. Slugging the
         // untruncated name overflows the 40-char slug column with a raw
