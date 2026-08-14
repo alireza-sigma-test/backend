@@ -5,7 +5,7 @@ namespace App\Models;
 use App\Enums\ProposalStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\{BelongsTo, BelongsToMany, HasMany};
+use Illuminate\Database\Eloquent\Relations\{BelongsTo, BelongsToMany, HasMany, HasOne};
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -47,6 +47,12 @@ class Proposal extends Model implements HasMedia
     public function statusChanges(): HasMany
     {
         return $this->hasMany(ProposalStatusChange::class);
+    }
+
+    /** The current viewer's own review, if any. Scoped by the authenticated user. */
+    public function myReview(): HasOne
+    {
+        return $this->hasOne(Review::class)->where('user_id', auth()->id());
     }
 
     public function registerMediaCollections(): void
