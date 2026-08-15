@@ -85,6 +85,14 @@ final class EloquentProposalRepository implements ProposalRepository
         return $buckets;
     }
 
+    public function readyToDecide(): int
+    {
+        return Proposal::query()
+            ->where('status', ProposalStatus::Pending)
+            ->has('reviews', '>=', (int) config('review.min_reviews_to_decide'))
+            ->count();
+    }
+
     private function base(User $viewer): Builder
     {
         return $this->scope(Proposal::query(), $viewer)

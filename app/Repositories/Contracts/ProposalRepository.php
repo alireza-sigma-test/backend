@@ -37,4 +37,7 @@ interface ProposalRepository
      * @return array<int,int>
      */
     public function ratingDistribution(Proposal $proposal): array;
+
+    /** Pending proposals carrying at least `review.min_reviews_to_decide` reviews. */
+    public function readyToDecide(): int;
 }
