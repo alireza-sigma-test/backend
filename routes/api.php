@@ -3,6 +3,7 @@
 // routes/api.php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\HistoryController;
 use App\Http\Controllers\Api\ProposalController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\StatusController;
@@ -25,6 +26,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/proposals/{proposal}', [ProposalController::class, 'show'])->whereNumber('proposal');
     Route::post('/proposals/{proposal}/reviews', [ReviewController::class, 'store'])->whereNumber('proposal');
     Route::patch('/proposals/{proposal}/status', [StatusController::class, 'update'])->whereNumber('proposal');
+    Route::get('/proposals/{proposal}/history', HistoryController::class)->whereNumber('proposal');
 
     Route::get('/tags', [TagController::class, 'index']);
 });
