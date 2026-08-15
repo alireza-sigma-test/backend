@@ -19,59 +19,35 @@ describe('API 404 enumeration guard', function () {
 
     beforeEach(fn () => $this->seed(RoleSeeder::class));
 
-    it('gives identical bodies for a forbidden id and a fake id where the abort_unless guard fires (status change)', function () {
-        // Given — a speaker who owns neither proposal, so both requests 404:
-        // the real one via ProposalController-style abort_unless, the fake one
-        // via a route-model-binding failure that never reaches the guard at all.
+    // All six `abort_unless($request->user()->can('view', $proposal), 404)` call
+    // sites in the app, one dataset row each, so the coverage is countable at a
+    // glance rather than six near-identical it() blocks: ProposalController's
+    // update/destroy/destroyAttachment, ReviewController::store,
+    // HistoryController, and StatusController::update. For every route, a real
+    // proposal the outsider cannot view (guard fires after a successful
+    // route-model bind) and a nonexistent id (route-model binding itself fails,
+    // before the guard is ever reached) must be indistinguishable.
+    it('gives an identical status and body for a forbidden id and a fake id', function (string $method, string $suffix, array $payload) {
+        // Given
         $outsider = User::factory()->speaker()->create();
         $theirs = Proposal::factory()->create(['status' => 'pending']);
 
         // When
-        $forbidden = $this->actingAs($outsider)
-            ->patchJson("/api/proposals/{$theirs->id}/status", ['status' => 'approved']);
-        $fake = $this->actingAs($outsider)
-            ->patchJson('/api/proposals/999999/status', ['status' => 'approved']);
+        $forbidden = $this->actingAs($outsider)->json($method, "/api/proposals/{$theirs->id}{$suffix}", $payload);
+        $fake = $this->actingAs($outsider)->json($method, "/api/proposals/999999{$suffix}", $payload);
 
         // Then
-        $forbidden->assertNotFound();
-        $fake->assertNotFound();
-        expect($forbidden->headers->get('Content-Type'))->toBe($fake->headers->get('Content-Type'));
-        expect($forbidden->json())->toBe($fake->json());
-    });
-
-    it('gives identical bodies for a forbidden id and a fake id where route-model binding is the only gate (history)', function () {
-        // Given — HistoryController runs the same abort_unless(can('view')) guard
-        // before its own authorize('viewHistory'), so this is a second call site,
-        // not a retest of the same controller method.
-        $outsider = User::factory()->speaker()->create();
-        $theirs = Proposal::factory()->create(['status' => 'approved']);
-
-        // When
-        $forbidden = $this->actingAs($outsider)->getJson("/api/proposals/{$theirs->id}/history");
-        $fake = $this->actingAs($outsider)->getJson('/api/proposals/999999/history');
-
-        // Then
-        $forbidden->assertNotFound();
-        $fake->assertNotFound();
-        expect($forbidden->headers->get('Content-Type'))->toBe($fake->headers->get('Content-Type'));
-        expect($forbidden->json())->toBe($fake->json());
-    });
-
-    it('gives identical bodies for a forbidden id and a fake id on the new delete endpoint', function () {
-        // Given — Task 5's own guard, exercised the same way.
-        $outsider = User::factory()->speaker()->create();
-        $theirs = Proposal::factory()->create(['status' => 'pending']);
-
-        // When
-        $forbidden = $this->actingAs($outsider)->deleteJson("/api/proposals/{$theirs->id}");
-        $fake = $this->actingAs($outsider)->deleteJson('/api/proposals/999999');
-
-        // Then
-        $forbidden->assertNotFound();
-        $fake->assertNotFound();
-        expect($forbidden->headers->get('Content-Type'))->toBe($fake->headers->get('Content-Type'));
-        expect($forbidden->json())->toBe($fake->json());
-    });
+        expect($forbidden->status())->toBe(404)
+            ->and($fake->status())->toBe(404)
+            ->and($forbidden->json())->toBe($fake->json());
+    })->with([
+        'ProposalController::update' => ['PATCH', '', ['title' => 'A perfectly valid title']],
+        'ProposalController::destroy' => ['DELETE', '', []],
+        'ProposalController::destroyAttachment' => ['DELETE', '/attachment', []],
+        'ReviewController::store' => ['POST', '/reviews', ['rating' => 4]],
+        'HistoryController' => ['GET', '/history', []],
+        'StatusController::update' => ['PATCH', '/status', ['status' => 'approved']],
+    ]);
 
     it('still returns a clean 401 for an unauthenticated request, not a 500', function () {
         // Given / When — no Sanctum token attached.
