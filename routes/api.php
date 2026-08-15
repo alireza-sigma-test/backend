@@ -29,6 +29,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/proposals/{proposal}', [ProposalController::class, 'destroy'])->whereNumber('proposal');
     Route::delete('/proposals/{proposal}/attachment', [ProposalController::class, 'destroyAttachment'])->whereNumber('proposal');
     Route::post('/proposals/{proposal}/reviews', [ReviewController::class, 'store'])->whereNumber('proposal');
+    Route::patch('/reviews/{review}', [ReviewController::class, 'update'])->whereNumber('review');
+    Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->whereNumber('review');
     Route::patch('/proposals/{proposal}/status', [StatusController::class, 'update'])->whereNumber('proposal');
     Route::get('/proposals/{proposal}/history', HistoryController::class)->whereNumber('proposal');
 

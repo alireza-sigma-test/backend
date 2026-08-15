@@ -4,12 +4,17 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Reviews\DeleteReview;
 use App\Actions\Reviews\SubmitReview;
+use App\Actions\Reviews\UpdateReview;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreReviewRequest;
+use App\Http\Requests\UpdateReviewRequest;
 use App\Http\Resources\ReviewResource;
 use App\Models\Proposal;
+use App\Models\Review;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 
 class ReviewController extends Controller
 {
@@ -30,5 +35,30 @@ class ReviewController extends Controller
                 : round((float) $proposal->reviews_avg_rating, 1),
             'reviews_count' => (int) $proposal->reviews_count,
         ], 201);
+    }
+
+    public function update(UpdateReviewRequest $request, Review $review, UpdateReview $action): JsonResponse
+    {
+        $this->authorize('update', $review);
+
+        $updated = $action->handle($review, $request->toData());
+        $proposal = $review->proposal()->withCount('reviews')->withAvg('reviews', 'rating')->firstOrFail();
+
+        return response()->json([
+            'review' => new ReviewResource($updated),
+            'average_rating' => $proposal->reviews_avg_rating === null
+                ? null
+                : round((float) $proposal->reviews_avg_rating, 1),
+            'reviews_count' => (int) $proposal->reviews_count,
+        ]);
+    }
+
+    public function destroy(Review $review, DeleteReview $action): Response
+    {
+        $this->authorize('delete', $review);
+
+        $action->handle($review);
+
+        return response()->noContent();
     }
 }
