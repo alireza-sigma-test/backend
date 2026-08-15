@@ -73,6 +73,11 @@ final class EloquentProposalRepository implements ProposalRepository
         // Zero-fill across the configured scale rather than returning only the
         // ratings that occur — the client renders one bar per point, and a
         // sparse map would make it branch on missing keys.
+        //
+        // $tallied may hold ratings above the current max_rating (recorded
+        // before the scale was lowered); those are simply never read below,
+        // so they drop out of the histogram instead of being clamped into the
+        // top bucket. See the interface docblock for why.
         foreach (range(1, (int) config('review.max_rating')) as $point) {
             $buckets[$point] = (int) ($tallied[$point] ?? 0);
         }

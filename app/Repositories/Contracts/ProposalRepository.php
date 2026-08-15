@@ -26,7 +26,15 @@ interface ProposalRepository
      * Rating counts keyed "1".."max_rating", every bucket present and
      * zero-filled so the client can render bars without null-checking.
      *
-     * @return array<string,int>
+     * Ratings outside the current 1..max_rating scale (left behind if
+     * max_rating is later lowered below ratings that already exist) are
+     * excluded, not clamped into the nearest bucket — clamping would report
+     * a genuine score as something it is not. That means the bucket sum
+     * equals reviews_count only when every stored rating falls within the
+     * current scale; a lowered scale is an unsupported data migration, and
+     * under-counting the total here is the honest failure mode.
+     *
+     * @return array<int,int>
      */
     public function ratingDistribution(Proposal $proposal): array;
 }
