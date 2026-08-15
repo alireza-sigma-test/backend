@@ -1,5 +1,14 @@
 # API surface — Proposal Review
 
+> **Implementation status.** Sections `01`–`05` below are fully built and live as of
+> this submission: every endpoint through `GET /api/stats` exists, is authorized, and
+> is covered by tests. One exception within that range: `PATCH /api/proposals/{id}/status`
+> writes the status and its audit record, but the broadcast event this document says it
+> fires is not dispatched — that requires Reverb, which is not wired up yet. Section
+> `06 · Live updates` (notifications, the activity feed, and broadcast channels) is not
+> built at all; it belongs to a later tier (T3/T5). See the root [`README.md`](../README.md)
+> for this submission's full built/not-built breakdown.
+
 Laravel API consumed by the Vue front end. Every screen in `App Screens.dc.html` is mapped to the endpoints it calls, with the fields each one accepts and returns.
 
 - Base path: `/api`

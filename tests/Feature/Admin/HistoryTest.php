@@ -68,4 +68,12 @@ describe('proposal status history', function () {
         $this->actingAs($alex)->getJson("/api/proposals/{$proposal->id}/history")
             ->assertOk()->assertJsonCount(0, 'data');
     });
+
+    it('refuses an unauthenticated request', function () {
+        // Given
+        $proposal = Proposal::factory()->create();
+
+        // When / Then
+        $this->getJson("/api/proposals/{$proposal->id}/history")->assertUnauthorized();
+    });
 });

@@ -57,4 +57,8 @@ describe('admin stats', function () {
         $this->actingAs(User::factory()->speaker()->create())
             ->getJson('/api/stats')->assertForbidden();
     });
+
+    it('refuses an unauthenticated request', function () {
+        $this->getJson('/api/stats')->assertUnauthorized();
+    });
 });
