@@ -19,7 +19,7 @@ final class UpdateReview
                 $changes['rating'] = $data->rating;
             }
 
-            if ($data->comment !== null) {
+            if ($data->commentProvided) {
                 $changes['comment'] = $data->comment;
             }
 

@@ -19,9 +19,17 @@ class UpdateReviewRequest extends FormRequest
 
     public function toData(): UpdateReviewData
     {
+        // has(), not filled() — filled() would fold an explicit null/"" back
+        // into "absent" and the comment would never actually clear. has()
+        // only tells us the key was sent; filled() on the raw value still
+        // decides whether that send counts as content or a clear.
+        $commentProvided = $this->has('comment');
+        $rawComment = $this->input('comment');
+
         return new UpdateReviewData(
             rating: $this->has('rating') ? $this->integer('rating') : null,
-            comment: $this->has('comment') ? $this->string('comment')->trim()->value() : null,
+            comment: $commentProvided && filled($rawComment) ? trim((string) $rawComment) : null,
+            commentProvided: $commentProvided,
         );
     }
 }

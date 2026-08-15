@@ -28,13 +28,7 @@ class ReviewController extends Controller
 
         $proposal->loadCount('reviews')->loadAvg('reviews', 'rating');
 
-        return response()->json([
-            'review' => new ReviewResource($review),
-            'average_rating' => $proposal->reviews_avg_rating === null
-                ? null
-                : round((float) $proposal->reviews_avg_rating, 1),
-            'reviews_count' => (int) $proposal->reviews_count,
-        ], 201);
+        return response()->json($this->envelope($review, $proposal), 201);
     }
 
     public function update(UpdateReviewRequest $request, Review $review, UpdateReview $action): JsonResponse
@@ -44,13 +38,7 @@ class ReviewController extends Controller
         $updated = $action->handle($review, $request->toData());
         $proposal = $review->proposal()->withCount('reviews')->withAvg('reviews', 'rating')->firstOrFail();
 
-        return response()->json([
-            'review' => new ReviewResource($updated),
-            'average_rating' => $proposal->reviews_avg_rating === null
-                ? null
-                : round((float) $proposal->reviews_avg_rating, 1),
-            'reviews_count' => (int) $proposal->reviews_count,
-        ]);
+        return response()->json($this->envelope($updated, $proposal));
     }
 
     public function destroy(Review $review, DeleteReview $action): Response
@@ -60,5 +48,17 @@ class ReviewController extends Controller
         $action->handle($review);
 
         return response()->noContent();
+    }
+
+    /** The {review, average_rating, reviews_count} envelope shared by store() and update(). */
+    private function envelope(Review $review, Proposal $proposal): array
+    {
+        return [
+            'review' => new ReviewResource($review),
+            'average_rating' => $proposal->reviews_avg_rating === null
+                ? null
+                : round((float) $proposal->reviews_avg_rating, 1),
+            'reviews_count' => (int) $proposal->reviews_count,
+        ];
     }
 }
