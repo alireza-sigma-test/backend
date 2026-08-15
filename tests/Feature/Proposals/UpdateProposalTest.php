@@ -3,6 +3,7 @@
 // tests/Feature/Proposals/UpdateProposalTest.php
 
 use App\Models\Proposal;
+use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -96,6 +97,31 @@ describe('updating a proposal', function () {
         $this->actingAs(User::factory()->speaker()->create())
             ->patchJson('/api/proposals/999999', ['title' => 'Does not exist at all'])
             ->assertNotFound();
+    });
+
+    it('returns the same review aggregates a follow-up GET would, not stale zeros', function () {
+        // Given — a proposal that already has reviews. This is what tells this
+        // case apart from creation: a brand new proposal genuinely has none,
+        // but an edited one is never brand new.
+        $dana = User::factory()->speaker()->create();
+        $proposal = Proposal::factory()->create(['user_id' => $dana->id, 'status' => 'pending']);
+        Review::factory()->count(3)->create(['proposal_id' => $proposal->id, 'rating' => 4]);
+
+        // When
+        $patched = $this->actingAs($dana)->patchJson("/api/proposals/{$proposal->id}", [
+            'title' => 'A rewritten title, reviews already in place',
+        ]);
+        $fetched = $this->actingAs($dana)->getJson("/api/proposals/{$proposal->id}");
+
+        // Then — the PATCH response must carry the real aggregates, matching
+        // what GET returns for the same proposal at the same moment, not an
+        // unpopulated 0/null pair a client would merge into its store after
+        // an edit and render as "no reviews".
+        $patched->assertOk()
+            ->assertJsonPath('reviews_count', 3)
+            ->assertJsonPath('average_rating', 4);
+        expect($patched->json('reviews_count'))->toBe($fetched->json('reviews_count'))
+            ->and($patched->json('average_rating'))->toBe($fetched->json('average_rating'));
     });
 
     it('still validates the fields it is given', function () {

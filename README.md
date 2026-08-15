@@ -148,14 +148,16 @@ removal, and the two admin-only read endpoints:
 | `GET /api/proposals/{id}/history` | `admin` | `200` |
 | `GET /api/stats` | `admin` | `200` |
 
-Every one of the six proposal-scoped routes above (all but `/stats`) returns an
-identical `404` body for a real id the caller can't see and a fake id, closing the
-enumeration oracle described in `tests/Feature/Security/NotFoundEnumerationTest.php`.
-`PATCH`/`DELETE /api/reviews/{id}` are deliberately not in that guard: a review id is
-only reachable through a proposal the caller can already see (there is no separate
-review index endpoint), and any reviewer or admin can already read every review on a
-proposal via `GET /api/proposals/{id}` — so there is nothing to enumerate. Those two
-routes deny with a plain policy `403` instead.
+The 404-enumeration guard covers exactly six proposal-scoped routes: `PATCH /api/proposals/{id}`,
+`DELETE /api/proposals/{id}`, `DELETE /api/proposals/{id}/attachment`,
+`POST /api/proposals/{id}/reviews`, `PATCH /api/proposals/{id}/status`, and
+`GET /api/proposals/{id}/history`. Every one of them returns an identical `404` body for
+a real id the caller can't see and a fake id, closing the enumeration oracle described in
+`tests/Feature/Security/NotFoundEnumerationTest.php`. `PATCH`/`DELETE /api/reviews/{id}`
+are deliberately **not** in that guard: a review id is only reachable through a proposal
+the caller can already see (there is no separate review index endpoint), and any reviewer
+or admin can already read every review on a proposal via `GET /api/proposals/{id}` — so
+there is nothing to enumerate. Those two routes deny with a plain policy `403` instead.
 
 ## Generated API docs
 

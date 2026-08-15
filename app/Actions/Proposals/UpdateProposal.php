@@ -45,7 +45,13 @@ final class UpdateProposal
                 $this->attachments->store($proposal, $data->attachment);
             }
 
-            return $proposal->fresh(['author.roles', 'tags', 'media']);
+            // Unlike SubmitProposal's fresh copy, this one can have existing
+            // reviews — an edited proposal is never brand new. Without these,
+            // ProposalResource reads unpopulated reviews_avg_rating/reviews_count
+            // and silently emits null/0, which GET /proposals/{id} would not.
+            return $proposal->fresh(['author.roles', 'tags', 'media'])
+                ->loadCount('reviews')
+                ->loadAvg('reviews', 'rating');
         });
     }
 }
