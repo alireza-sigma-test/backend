@@ -21,4 +21,12 @@ interface ProposalRepository
     public function counts(User $viewer): array;
 
     public function findForViewer(int $id, User $viewer): Proposal;
+
+    /**
+     * Rating counts keyed "1".."max_rating", every bucket present and
+     * zero-filled so the client can render bars without null-checking.
+     *
+     * @return array<string,int>
+     */
+    public function ratingDistribution(Proposal $proposal): array;
 }

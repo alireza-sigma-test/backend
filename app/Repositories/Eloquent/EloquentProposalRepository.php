@@ -61,6 +61,25 @@ final class EloquentProposalRepository implements ProposalRepository
             ->findOrFail($id);
     }
 
+    public function ratingDistribution(Proposal $proposal): array
+    {
+        $tallied = $proposal->reviews()
+            ->selectRaw('rating, COUNT(*) as total')
+            ->groupBy('rating')
+            ->pluck('total', 'rating');
+
+        $buckets = [];
+
+        // Zero-fill across the configured scale rather than returning only the
+        // ratings that occur — the client renders one bar per point, and a
+        // sparse map would make it branch on missing keys.
+        foreach (range(1, (int) config('review.max_rating')) as $point) {
+            $buckets[$point] = (int) ($tallied[$point] ?? 0);
+        }
+
+        return $buckets;
+    }
+
     private function base(User $viewer): Builder
     {
         return $this->scope(Proposal::query(), $viewer)

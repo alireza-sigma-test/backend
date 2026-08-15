@@ -59,6 +59,7 @@ class ProposalController extends Controller
         return response()->json([
             ...(new ProposalResource($model))->toArray($request),
             'max_rating' => config('review.max_rating'),
+            'rating_distribution' => $repo->ratingDistribution($model),
         ]);
     }
 }
