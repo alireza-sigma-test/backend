@@ -3,9 +3,6 @@
 namespace App\Providers;
 
 use App\Models\User;
-use Dedoc\Scramble\Scramble;
-use Dedoc\Scramble\Support\Generator\OpenApi;
-use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -37,9 +34,10 @@ class AppServiceProvider extends ServiceProvider
         // Sanctum and its policy, so the document is a map, not a key.
         Gate::define('viewApiDocs', fn (?User $user) => true);
 
-        Scramble::configure()
-            ->withDocumentTransformers(function (OpenApi $document): void {
-                $document->secure(SecurityScheme::http('bearer'));
-            });
+        // The bearer scheme itself, and which routes require it, are configured
+        // via `security_strategy` in config/scramble.php — not here. It inspects
+        // each route's actual `auth:sanctum` middleware, so `/api/register` and
+        // `/api/login` are correctly documented as unauthenticated instead of
+        // every route inheriting a single document-wide requirement.
     }
 }

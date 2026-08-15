@@ -1,6 +1,7 @@
 <?php
 
 use Dedoc\Scramble\Http\Middleware\RestrictedDocsAccess;
+use Dedoc\Scramble\SecurityDocumentation\MiddlewareAuthSecurityStrategy;
 
 return [
     /*
@@ -172,7 +173,16 @@ return [
      *         'scheme' => \Dedoc\Scramble\Support\Generator\SecurityScheme::http('bearer'),
      *     ],
      * ],
+     *
+     * Enabled here rather than configured manually in AppServiceProvider: the default
+     * middleware patterns ('auth', 'auth:*') already match this app's `auth:sanctum` group
+     * exactly, and per-operation marking is why this exists — `POST /api/register` and
+     * `POST /api/login` sit outside that group (by design: you can't hold a token before you
+     * have one), so a document-wide `$document->secure(...)` call would wrongly claim both
+     * need a bearer token to be called. This strategy declares the scheme once, applies it as
+     * the document-level default, then overrides `security: []` on every route that doesn't
+     * carry `auth`/`auth:*` middleware — so register/login are documented as public and
+     * everything else still requires the bearer token.
      */
-    // 'security_strategy' => \Dedoc\Scramble\SecurityDocumentation\MiddlewareAuthSecurityStrategy::class,
-    'security_strategy' => null,
+    'security_strategy' => MiddlewareAuthSecurityStrategy::class,
 ];
