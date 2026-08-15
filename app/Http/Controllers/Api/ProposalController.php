@@ -4,6 +4,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Proposals\DeleteProposal;
 use App\Actions\Proposals\SubmitProposal;
 use App\Actions\Proposals\UpdateProposal;
 use App\Http\Controllers\Controller;
@@ -13,9 +14,11 @@ use App\Http\Requests\UpdateProposalRequest;
 use App\Http\Resources\ProposalResource;
 use App\Models\Proposal;
 use App\Repositories\Contracts\ProposalRepository;
+use App\Services\AttachmentStore;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 
 class ProposalController extends Controller
 {
@@ -74,5 +77,31 @@ class ProposalController extends Controller
         $updated = $action->handle($proposal, $request->toData());
 
         return response()->json(new ProposalResource($updated));
+    }
+
+    public function destroy(Request $request, Proposal $proposal, DeleteProposal $action): Response
+    {
+        // 404, not 403 — mirrors ProposalController::show's own existence-hiding scope.
+        abort_unless($request->user()->can('view', $proposal), 404);
+        $this->authorize('delete', $proposal);
+
+        $action->handle($proposal);
+
+        return response()->noContent();
+    }
+
+    public function destroyAttachment(Request $request, Proposal $proposal, AttachmentStore $attachments): Response
+    {
+        abort_unless($request->user()->can('view', $proposal), 404);
+        // Editing the attachment is editing the proposal — same gate, so a
+        // decided proposal's PDF is as frozen as its text. An admin who can
+        // delete the whole proposal cannot strip just the PDF from a decided
+        // one; that asymmetry is intentional (docs/API.md files this under
+        // "03 · Submit a proposal", not the admin decision endpoints).
+        $this->authorize('update', $proposal);
+
+        $attachments->remove($proposal);
+
+        return response()->noContent();
     }
 }
