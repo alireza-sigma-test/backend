@@ -5,9 +5,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Proposals\SubmitProposal;
+use App\Actions\Proposals\UpdateProposal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\IndexProposalRequest;
 use App\Http\Requests\StoreProposalRequest;
+use App\Http\Requests\UpdateProposalRequest;
 use App\Http\Resources\ProposalResource;
 use App\Models\Proposal;
 use App\Repositories\Contracts\ProposalRepository;
@@ -61,5 +63,16 @@ class ProposalController extends Controller
             'max_rating' => config('review.max_rating'),
             'rating_distribution' => $repo->ratingDistribution($model),
         ]);
+    }
+
+    public function update(UpdateProposalRequest $request, Proposal $proposal, UpdateProposal $action): JsonResponse
+    {
+        // 404, not 403 — mirrors ProposalController::show's own existence-hiding scope.
+        abort_unless($request->user()->can('view', $proposal), 404);
+        $this->authorize('update', $proposal);
+
+        $updated = $action->handle($proposal, $request->toData());
+
+        return response()->json(new ProposalResource($updated));
     }
 }
