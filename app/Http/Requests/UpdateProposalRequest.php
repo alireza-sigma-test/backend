@@ -7,9 +7,26 @@ namespace App\Http\Requests;
 use App\Data\UpdateProposalData;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class UpdateProposalRequest extends FormRequest
 {
+    // 404, not 403 — mirrors ProposalController::show's own existence-hiding
+    // scope. This must live here, not in the controller body:
+    // ValidatesWhenResolvedTrait::validateResolved() calls passesAuthorization()
+    // before it builds the validator, so a guard placed after validation in the
+    // controller never runs for a payload that fails validation — a forbidden
+    // real id would 422 while a fake id 404s, leaking existence.
+    public function authorize(): bool
+    {
+        return $this->user()->can('view', $this->route('proposal'));
+    }
+
+    protected function failedAuthorization(): void
+    {
+        throw new NotFoundHttpException;
+    }
+
     public function rules(): array
     {
         return [

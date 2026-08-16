@@ -70,8 +70,9 @@ class ProposalController extends Controller
 
     public function update(UpdateProposalRequest $request, Proposal $proposal, UpdateProposal $action): JsonResponse
     {
-        // 404, not 403 — mirrors ProposalController::show's own existence-hiding scope.
-        abort_unless($request->user()->can('view', $proposal), 404);
+        // The 404-for-visibility guard now lives in UpdateProposalRequest::authorize(),
+        // which runs before validation — see the comment there. This authorize()
+        // call is the separate "can this viewer edit it" check (owner + pending).
         $this->authorize('update', $proposal);
 
         $updated = $action->handle($proposal, $request->toData());

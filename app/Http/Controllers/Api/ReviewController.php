@@ -20,8 +20,9 @@ class ReviewController extends Controller
 {
     public function store(StoreReviewRequest $request, Proposal $proposal, SubmitReview $action): JsonResponse
     {
-        // 404, not 403 — mirrors ProposalController::show's own existence-hiding scope.
-        abort_unless($request->user()->can('view', $proposal), 404);
+        // The 404-for-visibility guard now lives in StoreReviewRequest::authorize(),
+        // which runs before validation — see the comment there. This authorize()
+        // call is the separate "can this viewer submit a review" check.
         $this->authorize('review', $proposal);
 
         $review = $action->handle($request->user(), $proposal, $request->toData());

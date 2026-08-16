@@ -16,8 +16,9 @@ class StatusController extends Controller
 {
     public function update(ChangeStatusRequest $request, Proposal $proposal, ChangeProposalStatus $action): JsonResponse
     {
-        // 404, not 403 — mirrors ProposalController::show's own existence-hiding scope.
-        abort_unless($request->user()->can('view', $proposal), 404);
+        // The 404-for-visibility guard now lives in ChangeStatusRequest::authorize(),
+        // which runs before validation — see the comment there. This authorize()
+        // call is the separate "can this viewer change status" (admin-only) check.
         $this->authorize('changeStatus', $proposal);
 
         $admin = $request->user();
