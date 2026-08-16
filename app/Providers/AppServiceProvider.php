@@ -30,6 +30,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('resend-code', fn (Request $r) => Limit::perMinutes(10, 3)->by($r->user()?->id ?: $r->ip()));
         RateLimiter::for('accept-invite', fn (Request $r) => Limit::perMinute(6)->by($r->ip()));
 
+        // The only unauthenticated read surface in the application, so the only one
+        // that gets scraped. Keyed by IP because there is no user to key by.
+        RateLimiter::for('public-stats', fn (Request $r) => Limit::perMinute(30)->by($r->ip()));
+
         // The whole admin group sat with no limiter at all — every other
         // sensitive route in this app has a named one. Keyed by user id
         // (every route inside is already behind auth:sanctum, so it is

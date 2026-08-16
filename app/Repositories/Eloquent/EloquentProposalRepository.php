@@ -93,6 +93,14 @@ final class EloquentProposalRepository implements ProposalRepository
             ->count();
     }
 
+    public function countCreatedInYear(int $year): int
+    {
+        // whereYear() picks up Proposal's SoftDeletes global scope
+        // automatically, so a deleted proposal is excluded without any
+        // extra condition here — that's what makes the exclusion test pass.
+        return Proposal::whereYear('created_at', $year)->count();
+    }
+
     private function base(User $viewer): Builder
     {
         return $this->scope(Proposal::query(), $viewer)

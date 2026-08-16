@@ -4,6 +4,7 @@
 
 namespace App\Repositories\Contracts;
 
+use App\Enums\UserRole;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
@@ -13,4 +14,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 interface UserRepository
 {
     public function paginate(): LengthAwarePaginator;
+
+    /** Users holding the given role. Feeds the public stats endpoint. */
+    public function countWithRole(UserRole $role): int;
 }

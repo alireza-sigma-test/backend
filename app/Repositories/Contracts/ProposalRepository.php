@@ -40,4 +40,7 @@ interface ProposalRepository
 
     /** Pending proposals carrying at least `review.min_reviews_to_decide` reviews. */
     public function readyToDecide(): int;
+
+    /** Proposals created in the given calendar year. Feeds the public stats endpoint. */
+    public function countCreatedInYear(int $year): int;
 }
