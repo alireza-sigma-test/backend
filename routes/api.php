@@ -2,6 +2,7 @@
 
 // routes/api.php
 
+use App\Http\Controllers\Api\ActivityController;
 use App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmailVerificationController;
@@ -62,6 +63,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // but the caller's own read-state and disclose nothing they were not
     // already sent; gating them would leave an unverified reviewer with a
     // badge that only ever counts up and no way to clear it.
+    // The pair: notifications are addressed to you, activity is everything you
+    // may see. Same viewer scoping as GET /proposals, by construction — the
+    // feed's query is built on ProposalRepository::visibleQuery().
+    Route::get('/activity', ActivityController::class);
+
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll']);
     // Registered AFTER read-all so the literal segment wins: notification ids

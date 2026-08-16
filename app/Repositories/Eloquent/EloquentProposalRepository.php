@@ -103,6 +103,11 @@ final class EloquentProposalRepository implements ProposalRepository
         return Proposal::whereYear('created_at', $year)->count();
     }
 
+    public function visibleQuery(User $viewer): Builder
+    {
+        return $this->scope(Proposal::query(), $viewer);
+    }
+
     private function base(User $viewer): Builder
     {
         return $this->scope(Proposal::query(), $viewer)

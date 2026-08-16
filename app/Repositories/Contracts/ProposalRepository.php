@@ -8,6 +8,7 @@ use App\Data\ProposalFilterData;
 use App\Models\Proposal;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Read surface for Proposal. Queries only — writes go through Actions using
@@ -16,6 +17,23 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 interface ProposalRepository
 {
     public function paginate(ProposalFilterData $filters, User $viewer): LengthAwarePaginator;
+
+    /**
+     * The viewer-scoped proposal query every read here starts from: speakers
+     * see only their own, reviewers and admins see all. Soft-deleted rows drop
+     * out through the model's global scope.
+     *
+     * Exposed so the activity feed can scope itself by subquery instead of
+     * re-deriving the rule. There is one definition of who may see which
+     * proposal, and a second copy of it would drift — and the drift would be a
+     * disclosure, not a display bug.
+     *
+     * This is the one method here that hands back a Builder rather than a
+     * result, which is a real leak of Eloquent into a contract. It is the
+     * smaller of the two available leaks: the alternative is materialising ids
+     * into an unbounded IN clause.
+     */
+    public function visibleQuery(User $viewer): Builder;
 
     /** @return array{all:int, pending:int, approved:int, rejected:int} */
     public function counts(User $viewer): array;

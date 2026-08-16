@@ -6,6 +6,7 @@ namespace App\Events;
 
 use App\Models\Proposal;
 use App\Models\User;
+use App\Support\ActivityPayload;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -66,20 +67,6 @@ abstract class ProposalBroadcast implements ShouldBroadcast, ShouldDispatchAfter
     /** @return array<string, mixed> */
     final public function broadcastWith(): array
     {
-        return [
-            'type' => $this->type(),
-            'proposal' => [
-                'id' => $this->proposal->id,
-                'ref' => $this->proposal->ref(),
-                'title' => $this->proposal->title,
-                'status' => $this->proposal->status->value,
-            ],
-            'actor' => [
-                'id' => $this->actor->id,
-                'name' => $this->actor->name,
-                'initials' => $this->actor->initials(),
-            ],
-            'occurred_at' => $this->occurredAt,
-        ];
+        return ActivityPayload::make($this->type(), $this->proposal, $this->actor, $this->occurredAt);
     }
 }
