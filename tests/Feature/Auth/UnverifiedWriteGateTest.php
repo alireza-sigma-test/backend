@@ -56,13 +56,22 @@ describe('the unverified write gate', function () {
 
     it('tells the truth in the can object', function () {
         // Given — if `can` says true while the gate says no, the client renders
-        // a form that cannot succeed.
-        $proposal = Proposal::factory()->create(['status' => 'pending']);
+        // a form that cannot succeed. Each actor below is otherwise eligible
+        // for exactly one of the three gated abilities the resource exposes,
+        // so a policy conjunct dropped from any single one of them would flip
+        // that key to true and go unnoticed if only `can.review` were checked.
+        $owner = User::factory()->speaker()->unverified()->create();
+        $proposal = Proposal::factory()->create(['user_id' => $owner->id, 'status' => 'pending']);
         $reviewer = User::factory()->reviewer()->unverified()->create();
+        $admin = User::factory()->admin()->unverified()->create();
 
         // When / Then
+        $this->actingAs($owner)->getJson("/api/proposals/{$proposal->id}")
+            ->assertOk()->assertJsonPath('can.edit', false);
         $this->actingAs($reviewer)->getJson("/api/proposals/{$proposal->id}")
             ->assertOk()->assertJsonPath('can.review', false);
+        $this->actingAs($admin)->getJson("/api/proposals/{$proposal->id}")
+            ->assertOk()->assertJsonPath('can.change_status', false);
     });
 
     it('lets the same user write once verified', function () {
@@ -113,6 +122,35 @@ describe('the unverified write gate', function () {
         // even later in the pipeline than the Form Requests do.
         $destroyHidden = $this->actingAs($outsider)->deleteJson("/api/proposals/{$hidden->id}");
         $destroyFake = $this->actingAs($outsider)->deleteJson("/api/proposals/{$fakeId}");
+        $destroyHidden->assertForbidden();
+        $destroyFake->assertForbidden()->assertExactJson($destroyHidden->json());
+    });
+
+    // Same property, the two routes that bind a Review rather than a
+    // Proposal. T2's enumeration test asserted this property across its six
+    // routes and still missed one where it broke — a claim measured once and
+    // pinned nowhere is one refactor from silently reverting, and these two
+    // are exactly where a future change to binding/priority order would show
+    // it first.
+    it('refuses a hidden review and a nonexistent one identically, so an unverified outsider learns nothing about which review ids exist', function () {
+        // Given
+        $author = User::factory()->reviewer()->create();
+        $proposal = Proposal::factory()->create(['status' => 'pending']);
+        $review = Review::factory()->create(['user_id' => $author->id, 'proposal_id' => $proposal->id]);
+        $outsider = User::factory()->reviewer()->unverified()->create();
+        $fakeId = $review->id + 999_000;
+
+        // When
+        $onHidden = $this->actingAs($outsider)->patchJson("/api/reviews/{$review->id}", ['rating' => 5]);
+        $onFake = $this->actingAs($outsider)->patchJson("/api/reviews/{$fakeId}", ['rating' => 5]);
+
+        // Then — same status, same body, for someone else's review and a
+        // review id that never existed.
+        $onHidden->assertForbidden()->assertJsonPath('code', 'email_unverified');
+        $onFake->assertForbidden()->assertExactJson($onHidden->json());
+
+        $destroyHidden = $this->actingAs($outsider)->deleteJson("/api/reviews/{$review->id}");
+        $destroyFake = $this->actingAs($outsider)->deleteJson("/api/reviews/{$fakeId}");
         $destroyHidden->assertForbidden();
         $destroyFake->assertForbidden()->assertExactJson($destroyHidden->json());
     });
