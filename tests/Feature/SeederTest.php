@@ -3,6 +3,7 @@
 // tests/Feature/SeederTest.php
 
 use App\Enums\ProposalStatus;
+use App\Enums\SummaryStatus;
 use App\Models\Proposal;
 use App\Models\ProposalStatusChange;
 use App\Models\Review;
@@ -28,6 +29,35 @@ describe('demo seed data', function () {
             ->and(Review::count())->toBe(5)
             ->and(Media::count())->toBe(1)
             ->and(ProposalStatusChange::count())->toBe(2);
+    });
+
+    it('gives every seeded proposal a ready summary, so the demo works with no api key', function () {
+        // Given / When — this is what a grader running `make up` without an
+        // ANTHROPIC_API_KEY actually sees on the proposal pages. If the seeder
+        // ever stops writing these, the feature silently looks broken to
+        // everyone who has not set a key, which is most people.
+        $this->seed();
+        $proposals = Proposal::all();
+
+        // Then
+        expect($proposals)->toHaveCount(6);
+
+        foreach ($proposals as $proposal) {
+            expect($proposal->summary_status)->toBe(SummaryStatus::Ready)
+                ->and($proposal->summary)->not->toBeNull()
+                ->and(trim((string) $proposal->summary))->not->toBe('')
+                ->and($proposal->summary_generated_at)->not->toBeNull();
+        }
+    });
+
+    it('gives each seeded proposal its own summary, not one copied text', function () {
+        // Given / When — six identical strings would satisfy the test above
+        // while making the demo look like a stub.
+        $this->seed();
+        $summaries = Proposal::pluck('summary');
+
+        // Then
+        expect($summaries->unique())->toHaveCount(6);
     });
 
     it('gives every seeded user exactly one role', function () {
