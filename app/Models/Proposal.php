@@ -9,13 +9,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Proposal extends Model implements HasMedia
 {
-    use HasFactory, InteractsWithMedia;
+    /**
+     * Soft-deleted, and not so a proposal can be restored — deletion is one-way
+     * by decision. `reviews`, `proposal_tag` and `proposal_status_changes` all
+     * declare cascadeOnDelete, so a hard DELETE would destroy every reviewer's
+     * rating and comment and the whole audit trail as a side effect of one
+     * speaker withdrawing a talk. Soft-deleting keeps that work intact.
+     */
+    use HasFactory, InteractsWithMedia, SoftDeletes;
 
     public const ATTACHMENT_COLLECTION = 'attachment';
 

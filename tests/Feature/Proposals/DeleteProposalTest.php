@@ -18,7 +18,7 @@ describe('deleting a proposal', function () {
 
         // When / Then
         $this->actingAs($dana)->deleteJson("/api/proposals/{$proposal->id}")->assertNoContent();
-        $this->assertDatabaseMissing('proposals', ['id' => $proposal->id]);
+        $this->assertSoftDeleted('proposals', ['id' => $proposal->id]);
     });
 
     it('refuses the owning speaker once a decision exists', function () {
@@ -38,10 +38,10 @@ describe('deleting a proposal', function () {
         // When / Then
         $this->actingAs(User::factory()->admin()->create())
             ->deleteJson("/api/proposals/{$proposal->id}")->assertNoContent();
-        $this->assertDatabaseMissing('proposals', ['id' => $proposal->id]);
+        $this->assertSoftDeleted('proposals', ['id' => $proposal->id]);
     });
 
-    it('takes the reviews with it', function () {
+    it('leaves the reviews behind', function () {
         // Given
         $dana = User::factory()->speaker()->create();
         $proposal = Proposal::factory()->create(['user_id' => $dana->id, 'status' => 'pending']);
@@ -50,8 +50,10 @@ describe('deleting a proposal', function () {
         // When
         $this->actingAs($dana)->deleteJson("/api/proposals/{$proposal->id}")->assertNoContent();
 
-        // Then — orphaned review rows would break every average that follows.
-        expect(Review::where('proposal_id', $proposal->id)->count())->toBe(0);
+        // Then — reviews declare cascadeOnDelete against proposals, but this
+        // delete is a soft delete now, not a hard one, so the reviews survive
+        // it. Losing them here would break every average that follows.
+        expect(Review::where('proposal_id', $proposal->id)->count())->toBe(2);
     });
 
     it('removes the attachment without touching the proposal', function () {
