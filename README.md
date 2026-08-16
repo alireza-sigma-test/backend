@@ -12,8 +12,14 @@ git clone https://github.com/alireza-sigma-test/backend.git && cd backend
 make up
 ```
 
-That builds the images, boots nginx / php-fpm 8.4 / MySQL 8.4 / Redis / phpMyAdmin /
-Mailpit, generates the app key, migrates, and seeds.
+That builds the images, boots nginx / php-fpm 8.4 / MySQL 8.4 / Redis / a queue worker /
+phpMyAdmin / Mailpit, generates the app key, migrates, and seeds.
+
+The **queue worker** is not optional. `QUEUE_CONNECTION` is `redis`, so queued work —
+mail, notifications, and every broadcast event — is accepted and then sits on the queue
+until a worker takes it. Without the worker there is no error to see anywhere: the HTTP
+request that dispatched the job still returns 2xx. `docker compose logs queue` is where
+you watch it work.
 
 | Service | URL |
 |---|---|

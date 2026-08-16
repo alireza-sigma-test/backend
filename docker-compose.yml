@@ -28,6 +28,35 @@ services:
       mysql: { condition: service_healthy }
       redis: { condition: service_started }
 
+  # Without this service nothing queued ever runs, and it fails *silently* —
+  # jobs and ShouldBroadcast events are accepted onto the Redis queue and sit
+  # there forever. No error surfaces anywhere: the HTTP request that dispatched
+  # them still returns 2xx. Notifications stop arriving and websocket pushes
+  # stop firing, with a green API in front of them.
+  queue:
+    build: { context: ., dockerfile: docker/php/Dockerfile, target: app }
+    # Mirrors `php` exactly — same image, same uid, same writable HOME. It runs
+    # the same application code against the same bind mount; only the entry
+    # point differs.
+    user: "${WWWUSER:-1000}:${WWWGROUP:-1000}"
+    environment:
+      HOME: /tmp
+      COMPOSER_HOME: /tmp/composer
+    volumes: [".:/var/www/html"]
+    # --max-time recycles the worker hourly so a long-lived process cannot go
+    # on serving code from before the last deploy; --tries gives a failing job
+    # two retries before it lands in `failed_jobs` instead of looping forever.
+    command: php artisan queue:work --tries=3 --max-time=3600
+    # `unless-stopped` is load-bearing on a fresh clone, not boilerplate: the
+    # bind mount shadows the image's vendor/, so this container starts before
+    # `make up` has run `composer install` and exits immediately on a missing
+    # autoloader. It restarts until vendor/ appears. Expect a few early crash
+    # loops in `docker compose logs queue` on the very first `make up`.
+    restart: unless-stopped
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_started }
+
   mysql:
     image: mysql:8.4
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
