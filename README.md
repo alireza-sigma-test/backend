@@ -24,8 +24,14 @@ you watch it work.
 | Service | URL |
 |---|---|
 | API | <http://localhost:8000> |
+| Websocket (Reverb) | `ws://localhost:8080` — override with `REVERB_HOST_PORT` |
 | phpMyAdmin | <http://localhost:8081> (`proposal` / `secret`) |
 | Mailpit | <http://localhost:8025> |
+
+`REVERB_HOST_PORT` moves only the host-side mapping, like `DB_HOST_PORT`. If you
+change it, change the frontend's `NUXT_PUBLIC_REVERB_PORT` to match — the browser
+connects from outside the compose network, so it uses the host port, while the API
+reaches Reverb by service name on `REVERB_PORT`.
 
 | Command | What it does |
 |---|---|
@@ -93,9 +99,13 @@ Controllers stay under 20 lines.
 - **Actions** — one use case, one caller, owns the DB transaction.
 - **Services** — stateless collaborators reused across actions (`TagSynchronizer`,
   `AttachmentStore`).
-- **Repository** — read surface for `Proposal` only, the one model with non-trivial
-  queries. Filters compose through `Illuminate\Pipeline`. Writes use Eloquent directly
-  inside Actions, which keeps the interface honest rather than leaking a `save()`.
+- **Repositories** — the read surface. `Proposal` (filters compose through
+  `Illuminate\Pipeline`), plus `User`, `Notification` and `Activity`. Writes use
+  Eloquent directly inside Actions, which keeps these interfaces honest rather than
+  leaking a `save()`. `ProposalRepository::visibleQuery()` is the one place the
+  speaker-vs-everyone-else rule lives; the activity feed consumes it as a subquery
+  rather than re-deriving it, because a second copy of a visibility rule drifts, and
+  a drifted visibility rule is a disclosure.
 - **Policies are the single source of per-record authorization** — `view`, `update`,
   `review`, `changeStatus`, etc. List scoping is a separate concern and lives in
   `EloquentProposalRepository::scope()` instead: `ProposalPolicy::viewAny()` returns
@@ -113,6 +123,46 @@ Services/Repositories are `final`. None of them assert the under-20-line guideli
 `Proposal` being the only model with a repository, Form Request/Resource discipline, or
 policies as the per-record authorization site — those four are followed by convention
 and reviewed by hand, not enforced by a test.
+
+## Real-time
+
+Laravel Reverb on its own compose service, Redis as the queue backend with a
+dedicated worker, and Laravel Echo in the SPA. `make up` still brings all of it
+up in one command.
+
+| Piece | Where |
+|---|---|
+| Websocket server | `reverb` service, host port `${REVERB_HOST_PORT:-8080}` |
+| Queue worker | `queue` service, `php artisan queue:work` on redis |
+| Channels | `routes/channels.php` — `user.{id}`, `role.reviewer`, `role.admin` |
+| Events | `app/Events/` — four, sharing one thin payload |
+| Socket auth | `POST /broadcasting/auth`, under `auth:sanctum` |
+
+**Broadcast authorization is authorization, not plumbing.** A private channel is
+authorized once, when a client subscribes; every event after that reaches every
+subscriber with nothing re-checking who they are. So each callback in
+`routes/channels.php` is a real membership test — identity for `user.{id}`,
+`hasRole` for the two role channels — and the payload is deliberately thin, because
+whatever is in it reaches an entire role. `tests/Feature/Realtime/` covers both:
+the refusals (proved by mutation, not just by passing) and the exact payload key set.
+
+Three things are easy to get wrong here and are worth knowing:
+
+- **`QUEUE_CONNECTION=redis` needs the worker.** `ShouldBroadcast` events queue by
+  default. Without the `queue` service they are accepted and never run, and the
+  failure is silent — the HTTP request that dispatched them still returns 2xx.
+- **`queue:work` caches config for its whole lifetime.** After changing `.env`,
+  restart it (`docker compose restart queue`), or it keeps broadcasting through
+  whatever driver was configured when it booted.
+- **`/broadcasting/auth` is not under `api/*`**, so it needs its own entry in
+  `config/cors.php`. Without it every private-channel subscription fails in the
+  browser with a bare "Failed to fetch" and nothing reaches PHP at all.
+
+**The app degrades to exactly what it was without any of this.** Every screen
+fetches its own data; the notification bell's badge comes from
+`GET /api/notifications`'s `meta.unread_count` and is only *nudged* by events, so
+it is correct with Reverb stopped. Real-time is an enhancement, and the test for
+that is to stop the container and walk the app.
 
 ## Notable decisions
 
@@ -305,13 +355,12 @@ Deliberately out of scope for this submission, in planned order:
 
 | | |
 |---|---|
-| Real-time updates over Laravel Reverb | private channels per user and per role; also why `PATCH /api/proposals/{id}/status` writes its audit record but doesn't yet dispatch the broadcast event `docs/API.md` describes |
 | AI proposal summarisation | Laravel AI SDK agent, PDF as native document input |
-| Persisted notifications and the activity feed | no schema for either exists yet |
 
-Edit/delete for proposals and reviews, attachment removal, `/stats`, `/history` and
-OpenAPI generation — all previously listed here — are built this tier; see
-*API contract* and *Generated API docs* above.
+Real-time over Reverb, persisted notifications and the activity feed — all previously
+listed here — are built this tier; see *Real-time* above and `docs/API.md` §08. So are
+edit/delete for proposals and reviews, attachment removal, `/stats`, `/history` and
+OpenAPI generation, from the tier before.
 
 The build was tiered so that every stopping point is coherent: migrations are additive per
 tier, so there are no unused columns for features that were never built.

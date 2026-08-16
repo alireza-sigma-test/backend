@@ -1,17 +1,15 @@
 # API surface — Proposal Review
 
-> **Implementation status.** Sections `01`–`07` below are fully built and live as of
-> this submission: every endpoint through `POST /api/admin/users/{user}/reinvite` exists,
-> is authorized, and is covered by tests. One exception within that range:
-> `PATCH /api/proposals/{id}/status` writes the status and its audit record, but the
-> broadcast event this document says it fires is not dispatched — that requires
-> Reverb, which is not wired up yet. A second exception, this one by design:
-> `GET /api/public-stats` has no authorization at all — it is deliberately
-> unauthenticated, so "is authorized" does not apply to it. It is rate-limited
-> and covered by tests like everything else. Section `08 · Live updates`
-> (notifications, the activity feed, and broadcast channels) is not built at all;
-> it belongs to a later tier (T3/T5). See the root [`README.md`](../README.md)
-> for this submission's full built/not-built breakdown.
+> **Implementation status.** Sections `01`–`08` below are fully built and live as of
+> this submission: every endpoint through `GET /api/activity` exists, is authorized,
+> and is covered by tests. `PATCH /api/proposals/{id}/status` now dispatches the
+> broadcast event this document describes, alongside its audit record. Two
+> deliberate exceptions to "is authorized": `GET /api/public-stats` has no
+> authorization at all — it is the one unauthenticated read surface, rate-limited
+> and tested like everything else — and `GET /api/activity` has no policy either,
+> because it takes no id: the endpoint *is* one scoped read, and the scoping is the
+> authorization (see §08). See the root [`README.md`](../README.md) for this
+> submission's full built/not-built breakdown.
 
 Laravel API consumed by the Vue front end. Every screen in `App Screens.dc.html` is mapped to the endpoints it calls, with the fields each one accepts and returns.
 
@@ -392,18 +390,69 @@ Query: `unread_only` (bool), `per_page`. Returns paginated:
 | `id` | uuid | |
 | `type` | enum | `proposal.created` \| `proposal.updated` \| `review.created` \| `proposal.status_changed` |
 | `title` | string | e.g. "New proposal to review" |
-| `body` | string | e.g. "\"Type-safe APIs end to end\" — Ilya Petrov" |
+| `body` | string | e.g. `“Type-safe APIs end to end” — Ilya Petrov` (typographic quotes) |
 | `proposal_id` | int\|null | deep-link target |
 | `read_at` | ISO 8601\|null | |
 | `created_at` | ISO 8601 | |
 
-Plus `meta.unread_count` for the badge.
+Plus `meta.unread_count` for the badge, merged into the paginator's own `meta`.
+It is the caller's total unread, not the page count and not `meta.total`.
+
+`type` here is the event vocabulary, and it lives inside the row's `data`
+payload — **not** in the `notifications.type` column, which Laravel fills with
+the notification class name and needs for its own deserialisation.
+
+**Who receives what.** The recipient list of each type is the audience of the
+matching broadcast channel below, made durable — events push, this table
+records, and deriving the two separately would let the bell and the socket
+disagree. Nobody is ever notified of their own action, and nobody who lands on
+two lists is notified twice.
+
+| Type | Sent to |
+|---|---|
+| `proposal.created` | every reviewer and admin |
+| `proposal.updated` | every reviewer |
+| `proposal.status_changed` | the proposal's author |
+| `review.created` | the proposal's author, and every admin |
+
+A review **edit** sends nothing: `POST /proposals/{id}/reviews` is
+`updateOrCreate`, and this vocabulary has no `review.updated`. A **no-op**
+status change sends nothing either — it writes no audit row, so nothing
+happened.
 
 ### `POST /api/notifications/{id}/read` · `POST /api/notifications/read-all`
-`204`. Both return the new `unread_count` in the response header `X-Unread-Count`.
+`204`. Both return the new unread total in the response header
+`X-Unread-Count`, which `config/cors.php` exposes so a browser on another
+origin can read it. An id belonging to someone else answers **404, not 403** —
+existence is never disclosed.
 
 ### `GET /api/activity`
-Query: `per_page`. The activity feed on screen 06 — same event `type` vocabulary, but scoped to everything the caller may see rather than to notifications addressed to them.
+Query: `per_page` (clamped to 50), `page`. Paginated. The activity feed on
+screen 06 — same event `type` vocabulary, but scoped to everything the caller
+may see rather than to notifications addressed to them. **Notifications are
+addressed to you; activity is everything you may see.**
+
+Each row is the broadcast payload plus an `id`, so one client component renders
+a live push and a fetched row identically:
+
+```json
+{ "id": "review.created:7", "type": "review.created",
+  "proposal": { "id": 4, "ref": "#PR-1004", "title": "…", "status": "approved" },
+  "actor": { "id": 6, "name": "Sofia Lindqvist", "initials": "SL" },
+  "occurred_at": "2026-08-16T14:32:40+00:00" }
+```
+
+Scoped by the same visibility rule as `GET /api/proposals` — literally the same
+query, reused as a subquery — so a speaker sees only their own proposals'
+events and a reviewer or admin sees all. Activity on a soft-deleted proposal
+disappears with it.
+
+**The feed carries three of the four types.** `proposal.updated` is broadcast
+live but is not in the feed: nothing durably records that a proposal was
+edited (there are audit rows for status changes and none for edits), and the
+only proxy — `updated_at` — cannot say what changed and *moves*, so yesterday's
+edit would silently re-date itself and the feed's own history would rewrite
+itself under the reader.
 
 ### Broadcast channels
 | Channel | Who | Events |
@@ -412,9 +461,32 @@ Query: `per_page`. The activity feed on screen 06 — same event `type` vocabula
 | `private-role.reviewer` | reviewers | `proposal.created`, `proposal.updated` |
 | `private-role.admin` | admins | `proposal.created`, `review.created` |
 
-Payload for every event: `{ type, proposal: { id, ref, title, status }, actor: { id, name, initials }, occurred_at }`. The client uses the payload to patch its store; it does not refetch the list.
+Defined in `routes/channels.php` as `user.{id}`, `role.reviewer` and
+`role.admin` — Laravel adds the `private-` prefix on the wire. Each callback is
+a real membership test: identity for the user channel, `hasRole` for the two
+role channels. **Roles are not a hierarchy here** — an admin is refused on
+`private-role.reviewer`.
 
-Auth endpoint for the socket: `POST /broadcasting/auth` (standard Laravel).
+Payload for every event: `{ type, proposal: { id, ref, title, status }, actor: { id, name, initials }, occurred_at }`.
+
+**The payload is deliberately thin, and that is a security property.** A private
+channel is authorized once, at subscribe time; everything broadcast on it
+afterwards reaches every subscriber with nothing re-checking them. Broadcasting
+a `Proposal` resource instead would ship one user's `can` block, `my_review` and
+review counts to a whole role. A client that needs more — an updated average
+rating, say — refetches that one record through the API, where the policy
+applies. `tests/Feature/Realtime/EventPayloadTest.php` asserts the exact key
+set, so widening it fails the build.
+
+Events are queued (`ShouldBroadcast`) and fire only after their transaction
+commits (`ShouldDispatchAfterCommit`), so a rolled-back write broadcasts
+nothing.
+
+Auth endpoint for the socket: `POST /broadcasting/auth`, registered by
+`withBroadcasting()` in `bootstrap/app.php` under **`auth:sanctum`** — not the
+framework's default `web` group, which assumes a session this application does
+not have. It is listed in `config/cors.php`'s `paths` because it sits outside
+`api/*` and the SPA is on another origin.
 
 ---
 

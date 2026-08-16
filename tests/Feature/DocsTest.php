@@ -20,6 +20,10 @@ describe('generated API docs', function () {
             '/api/stats',
             '/api/public-stats',
             '/api/reviews/{review}',
+            '/api/notifications',
+            '/api/notifications/read-all',
+            '/api/notifications/{notification}/read',
+            '/api/activity',
         ]);
 
         // A path key surviving isn't proof the operation did: pin the verb
@@ -31,6 +35,10 @@ describe('generated API docs', function () {
         expect($paths['/api/reviews/{review}'])->toHaveKeys(['patch', 'delete']);
         expect($paths['/api/stats'])->toHaveKeys(['get']);
         expect($paths['/api/public-stats'])->toHaveKeys(['get']);
+        expect($paths['/api/notifications'])->toHaveKeys(['get']);
+        expect($paths['/api/notifications/read-all'])->toHaveKeys(['post']);
+        expect($paths['/api/notifications/{notification}/read'])->toHaveKeys(['post']);
+        expect($paths['/api/activity'])->toHaveKeys(['get']);
     });
 
     it('keeps the route parameter and the Form Request rules that make this package worth using', function () {
