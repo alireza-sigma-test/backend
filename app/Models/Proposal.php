@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ProposalStatus;
+use App\Enums\SummaryStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -38,9 +39,19 @@ class Proposal extends Model implements HasMedia
 
     protected $fillable = ['user_id', 'title', 'description', 'status'];
 
+    /**
+     * `summary`, `summary_status` and `summary_generated_at` are deliberately
+     * absent from $fillable above: they are written only by the job that
+     * generates them, never mass-assigned from a request. A speaker must not
+     * be able to author their own AI summary by putting it in a form field.
+     */
     protected function casts(): array
     {
-        return ['status' => ProposalStatus::class];
+        return [
+            'status' => ProposalStatus::class,
+            'summary_status' => SummaryStatus::class,
+            'summary_generated_at' => 'datetime',
+        ];
     }
 
     /** Display id. Derived, not stored — a second sequence buys nothing. */
