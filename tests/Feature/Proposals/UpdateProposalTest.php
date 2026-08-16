@@ -52,6 +52,24 @@ describe('updating a proposal', function () {
         expect($proposal->fresh()->tags->pluck('name')->all())->toBe(['observability']);
     });
 
+    it('clears every tag when tags is sent as an empty array', function () {
+        // Given — has() vs input('tags', []) is the whole point of
+        // UpdateProposalRequest::toData()'s docblock: an explicitly sent `[]`
+        // must reach the action as "clear them", distinct from an absent key
+        // meaning "leave them alone". A regression to input('tags', null)
+        // would pass every other tag test in this file while breaking this one.
+        $dana = User::factory()->speaker()->create();
+        $proposal = Proposal::factory()->create(['user_id' => $dana->id, 'status' => 'pending']);
+        $proposal->tags()->attach(Tag::factory()->count(2)->create());
+
+        // When
+        $response = $this->actingAs($dana)->patchJson("/api/proposals/{$proposal->id}", ['tags' => []]);
+
+        // Then
+        $response->assertOk();
+        expect($proposal->fresh()->tags)->toBeEmpty();
+    });
+
     it('leaves tags untouched when the field is absent', function () {
         // Given
         $dana = User::factory()->speaker()->create();
@@ -156,5 +174,23 @@ describe('updating a proposal', function () {
         // Then
         $response->assertStatus(422)->assertJsonValidationErrors('attachment');
         expect($proposal->fresh()->attachment())->not->toBeNull();
+    });
+
+    it('replaces the attachment through PATCH multipart, not just at creation', function () {
+        // Given
+        $dana = User::factory()->speaker()->create();
+        $proposal = Proposal::factory()->create(['user_id' => $dana->id, 'status' => 'pending']);
+        app(AttachmentStore::class)->store($proposal, fakePdf('original.pdf'));
+
+        // When
+        $response = $this->actingAs($dana)->patch("/api/proposals/{$proposal->id}", [
+            'attachment' => fakePdf('replacement.pdf'),
+        ]);
+
+        // Then — singleFile() means the second upload replaces, not appends.
+        $response->assertOk();
+        $fresh = $proposal->fresh();
+        expect($fresh->getMedia(Proposal::ATTACHMENT_COLLECTION))->toHaveCount(1)
+            ->and($fresh->attachment()->file_name)->toBe('replacement.pdf');
     });
 });
