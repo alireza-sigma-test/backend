@@ -20,7 +20,10 @@ class HistoryController extends Controller
         $this->authorize('viewHistory', $proposal);
 
         return StatusChangeResource::collection(
-            $proposal->statusChanges()->with('changedBy.roles')->latest()->get()
+            // ->latest('id') as a tiebreaker: created_at has second granularity
+            // and the model sets UPDATED_AT = null, so two decisions recorded
+            // in the same second would otherwise have no deterministic order.
+            $proposal->statusChanges()->with('changedBy.roles')->latest()->latest('id')->get()
         );
     }
 }
