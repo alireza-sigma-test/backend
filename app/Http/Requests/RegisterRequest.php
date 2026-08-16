@@ -18,7 +18,9 @@ class RegisterRequest extends FormRequest
             'name' => ['required', 'string', 'max:80'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)],
-            'role' => ['required', Rule::in(UserRole::values())],
+            // Administrators are created by administrators. Self-registration
+            // offers only the two roles a stranger may legitimately claim.
+            'role' => ['required', Rule::in([UserRole::Speaker->value, UserRole::Reviewer->value])],
         ];
     }
 

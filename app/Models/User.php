@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\CodePurpose;
+use App\Notifications\EmailVerificationCode;
+use App\Services\UserCodeService;
 use Illuminate\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -51,5 +54,16 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
+    }
+
+    /**
+     * Laravel's default sends a signed link. This project verifies with a typed
+     * code, so the override keeps the two paths from ever diverging.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $code = app(UserCodeService::class)->issue($this, CodePurpose::EmailVerification);
+
+        $this->notify(new EmailVerificationCode($code));
     }
 }
