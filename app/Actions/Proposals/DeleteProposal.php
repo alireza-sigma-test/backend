@@ -15,9 +15,16 @@ final class DeleteProposal
     public function handle(Proposal $proposal): void
     {
         DB::transaction(function () use ($proposal): void {
-            // Clear media explicitly rather than relying on the model event:
-            // Media Library's cleanup runs on `deleting`, and doing it here
-            // keeps the file removal inside this transaction's boundary.
+            // The ONLY thing that removes the PDF now — not a belt-and-braces
+            // duplicate of the model event. Media Library's cleanup listener
+            // (InteractsWithMedia::bootInteractsWithMedia) runs on `deleting`,
+            // but returns early when the model uses SoftDeletes and is not
+            // force-deleting — which is every delete Proposal performs. Drop
+            // this line and each withdrawn proposal orphans its media row and
+            // its file on disk. Doing it here also keeps the file removal
+            // inside this transaction's boundary, and it is what makes
+            // deletion one-way: a later tier adding restore must revisit
+            // exactly this line, because the file is already gone.
             $this->attachments->remove($proposal);
             $proposal->delete();
         });

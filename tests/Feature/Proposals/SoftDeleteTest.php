@@ -8,6 +8,7 @@ use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 describe('soft-deleting a proposal', function () {
 
@@ -100,6 +101,26 @@ describe('soft-deleting a proposal', function () {
 
         $this->actingAs($maya)->deleteJson("/api/reviews/{$review->id}")
             ->assertForbidden();
+    });
+
+    it('purges the attachment when a proposal is soft-deleted', function () {
+        // Given a pending proposal carrying a PDF
+        $dana = User::factory()->speaker()->create();
+        $proposal = Proposal::factory()->create(['user_id' => $dana->id, 'status' => 'pending']);
+        $proposal->addMedia(fakePdf('slides.pdf'))
+            ->toMediaCollection(Proposal::ATTACHMENT_COLLECTION);
+        expect(Media::where('model_id', $proposal->id)->count())->toBe(1);
+
+        // When the owner deletes it
+        $this->actingAs($dana)->deleteJson("/api/proposals/{$proposal->id}")->assertNoContent();
+
+        // Then the media row is gone even though the proposal row survives.
+        // Nothing but DeleteProposal's explicit remove() does this: Media
+        // Library's `deleting` listener returns early for a model using
+        // SoftDeletes unless it is force-deleting, so without that call
+        // every withdrawn proposal would orphan its row and its file.
+        $this->assertSoftDeleted('proposals', ['id' => $proposal->id]);
+        expect(Media::where('model_id', $proposal->id)->count())->toBe(0);
     });
 
     it('excludes deleted proposals from a tag proposals_count', function () {
