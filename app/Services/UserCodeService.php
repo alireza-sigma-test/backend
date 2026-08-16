@@ -58,8 +58,18 @@ final class UserCodeService
             return false;
         }
 
-        $row->update(['consumed_at' => now()]);
+        // Atomic conditional update — the WHERE and the write happen as one
+        // statement under the row's lock, so a second caller racing the same
+        // correct code (one that already read this row as unconsumed before
+        // this update committed) re-reads the committed consumed_at the
+        // instant it acquires the lock and updates zero rows. The
+        // affected-row count is the only trustworthy signal of which caller
+        // actually won; no transaction is needed because the atomicity lives
+        // inside this single statement, not across several.
+        $consumed = UserCode::whereKey($row->id)
+            ->whereNull('consumed_at')
+            ->update(['consumed_at' => now()]);
 
-        return true;
+        return $consumed === 1;
     }
 }

@@ -94,4 +94,36 @@ describe('single-use codes', function () {
         // Then — issuing an invite must not invalidate a verification code.
         expect($this->service->consume($user, CodePurpose::EmailVerification, $verification))->toBeTrue();
     });
+
+    it('does not let two racing callers both consume the same correct code', function () {
+        // Given — a single-process suite cannot drive two truly simultaneous
+        // callers, so this simulates the interleaving directly instead of
+        // claiming a real race: the moment this call's SELECT hydrates the
+        // row (its "read"), a hook runs a second, complete consume() call for
+        // the same code before this call reaches its own write — standing in
+        // for a request that raced in during that gap and won it. Both calls
+        // therefore act on a row they each believe is still unconsumed.
+        $user = User::factory()->speaker()->create();
+        $code = $this->service->issue($user, CodePurpose::EmailVerification);
+
+        $racerConsumed = null;
+        UserCode::retrieved(function () use (&$racerConsumed, $user, $code): void {
+            // Fire once — the racer's own SELECT below must not recurse.
+            UserCode::flushEventListeners();
+            $racerConsumed = $this->service->consume($user, CodePurpose::EmailVerification, $code);
+        });
+
+        // When
+        try {
+            $firstConsumed = $this->service->consume($user, CodePurpose::EmailVerification, $code);
+        } finally {
+            UserCode::flushEventListeners();
+        }
+
+        // Then — the racer's write lands first and must win; this call reads
+        // the row before that write but must still lose once it reaches its
+        // own write, or "set once, never reused" breaks under concurrency.
+        expect($racerConsumed)->toBeTrue()
+            ->and($firstConsumed)->toBeFalse();
+    });
 });
