@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\UserCode;
 use App\Services\UserCodeService;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Support\Facades\Hash;
 
 describe('single-use codes', function () {
 
@@ -125,5 +126,49 @@ describe('single-use codes', function () {
         // own write, or "set once, never reused" breaks under concurrency.
         expect($racerConsumed)->toBeTrue()
             ->and($firstConsumed)->toBeFalse();
+    });
+
+    it('burns comparable time whether or not an active code exists, for both purposes', function () {
+        // Given — a real code hashed at the app's actual cost (12), not the
+        // test suite's speed-optimised BCRYPT_ROUNDS=4. bcrypt reads its
+        // work factor from the hash string itself at verify time, so
+        // measuring against a cost-4 row here would manufacture the very
+        // gap this test exists to rule out — it isn't the production
+        // comparison, only a test-speed artifact.
+        foreach ([CodePurpose::Invite, CodePurpose::EmailVerification] as $purpose) {
+            $userWithLiveCode = User::factory()->speaker()->create();
+            UserCode::create([
+                'user_id' => $userWithLiveCode->id,
+                'purpose' => $purpose,
+                'code_hash' => Hash::make('REALCODE1234', ['rounds' => 12]),
+                'expires_at' => now()->addMinutes(15),
+            ]);
+            $userWithNoCode = User::factory()->speaker()->create();
+
+            // When
+            $start = hrtime(true);
+            $this->service->consume($userWithLiveCode, $purpose, 'WRONGWRONG12');
+            $wrongCodeElapsed = hrtime(true) - $start;
+
+            $start = hrtime(true);
+            $this->service->consume($userWithNoCode, $purpose, 'WRONGWRONG12');
+            $noRowElapsed = hrtime(true) - $start;
+
+            $start = hrtime(true);
+            $this->service->consume($userWithLiveCode, $purpose, 'REALCODE1234');
+            $successElapsed = hrtime(true) - $start;
+
+            // Then — coarse guards, not precise measurements: a bare DB
+            // lookup with no hash check runs in ~1ms against a real bcrypt
+            // comparison's ~150ms+, so requiring only the same order of
+            // magnitude (not a tight ratio) is enough to catch a regression
+            // to that ~1ms fast path without making this test flaky under
+            // ordinary CI jitter.
+            expect($noRowElapsed)->toBeGreaterThan($wrongCodeElapsed * 0.3);
+
+            // And the success path — which already does one real hash
+            // check plus a write — must not have picked up a second one.
+            expect($successElapsed)->toBeLessThan($wrongCodeElapsed * 2);
+        }
     });
 });

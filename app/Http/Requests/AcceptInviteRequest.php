@@ -13,7 +13,7 @@ class AcceptInviteRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email'],
+            'email' => ['required', 'email', 'max:255'],
             'code' => ['required', 'string'],
             'password' => ['required', 'confirmed', Password::min(8)],
         ];
