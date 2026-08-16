@@ -7,6 +7,7 @@ namespace App\Actions\Proposals;
 use App\Data\ProposalData;
 use App\Enums\ProposalStatus;
 use App\Events\ProposalCreated;
+use App\Jobs\GenerateProposalSummary;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\ActivityNotifier;
@@ -43,6 +44,8 @@ final class SubmitProposal
             // implements ShouldDispatchAfterCommit, so nothing leaves this
             // process until the commit succeeds. A rollback below this line
             // takes the broadcast with it.
+            GenerateProposalSummary::for($proposal);
+
             ProposalCreated::dispatch($proposal, $author);
             $this->notifier->proposalCreated($proposal, $author);
 

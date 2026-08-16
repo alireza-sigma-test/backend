@@ -6,6 +6,7 @@ namespace App\Actions\Proposals;
 
 use App\Data\UpdateProposalData;
 use App\Events\ProposalUpdated;
+use App\Jobs\GenerateProposalSummary;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\ActivityNotifier;
@@ -53,6 +54,14 @@ final class UpdateProposal
                 // The collection is singleFile(), so this replaces rather than
                 // appends. Removal is a separate endpoint.
                 $this->attachments->store($proposal, $data->attachment);
+
+                // Only on an attachment change — deliberately NOT on a title
+                // or description edit. Each run is a paid model call, and
+                // re-summarizing on every save would bill for every typo fix.
+                // The cost of that choice is real and worth naming: a summary
+                // can describe a description that has since been edited, and
+                // nothing here detects that.
+                GenerateProposalSummary::for($proposal);
             }
 
             ProposalUpdated::dispatch($proposal, $actor);
