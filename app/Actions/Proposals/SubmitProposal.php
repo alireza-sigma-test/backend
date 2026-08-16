@@ -9,6 +9,7 @@ use App\Enums\ProposalStatus;
 use App\Events\ProposalCreated;
 use App\Models\Proposal;
 use App\Models\User;
+use App\Services\ActivityNotifier;
 use App\Services\AttachmentStore;
 use App\Services\TagSynchronizer;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,7 @@ final class SubmitProposal
     public function __construct(
         private TagSynchronizer $tags,
         private AttachmentStore $attachments,
+        private ActivityNotifier $notifier,
     ) {}
 
     public function handle(User $author, ProposalData $data): Proposal
@@ -42,6 +44,7 @@ final class SubmitProposal
             // process until the commit succeeds. A rollback below this line
             // takes the broadcast with it.
             ProposalCreated::dispatch($proposal, $author);
+            $this->notifier->proposalCreated($proposal, $author);
 
             return $proposal->load(['author.roles', 'tags', 'media']);
         });

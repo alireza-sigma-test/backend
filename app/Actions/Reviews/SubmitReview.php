@@ -9,10 +9,13 @@ use App\Events\ReviewCreated;
 use App\Models\Proposal;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\ActivityNotifier;
 use Illuminate\Support\Facades\DB;
 
 final class SubmitReview
 {
+    public function __construct(private ActivityNotifier $notifier) {}
+
     /**
      * One review per reviewer per proposal: a second call updates the first.
      * The database unique index is the real guarantee; updateOrCreate keeps
@@ -35,6 +38,7 @@ final class SubmitReview
             // the detail screen reads on its own next fetch.
             if ($review->wasRecentlyCreated) {
                 ReviewCreated::dispatch($proposal, $reviewer);
+                $this->notifier->reviewCreated($proposal, $reviewer);
             }
 
             return $review->load('reviewer.roles');

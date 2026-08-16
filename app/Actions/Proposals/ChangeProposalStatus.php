@@ -9,10 +9,13 @@ use App\Events\ProposalStatusChanged;
 use App\Models\Proposal;
 use App\Models\ProposalStatusChange;
 use App\Models\User;
+use App\Services\ActivityNotifier;
 use Illuminate\Support\Facades\DB;
 
 final class ChangeProposalStatus
 {
+    public function __construct(private ActivityNotifier $notifier) {}
+
     /**
      * @return array{proposal: Proposal, change: ?ProposalStatusChange}
      *                                                                  `change` is null for a no-op, which writes no audit row.
@@ -52,6 +55,7 @@ final class ChangeProposalStatus
             // without an audit row, and it must not broadcast either — the
             // author would be told their proposal changed when it did not.
             ProposalStatusChanged::dispatch($proposal, $admin);
+            $this->notifier->proposalStatusChanged($proposal, $admin);
 
             return [
                 'proposal' => $proposal->fresh(['author.roles', 'tags', 'media']),

@@ -8,6 +8,7 @@ use App\Data\UpdateProposalData;
 use App\Events\ProposalUpdated;
 use App\Models\Proposal;
 use App\Models\User;
+use App\Services\ActivityNotifier;
 use App\Services\AttachmentStore;
 use App\Services\TagSynchronizer;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,7 @@ final class UpdateProposal
     public function __construct(
         private TagSynchronizer $tags,
         private AttachmentStore $attachments,
+        private ActivityNotifier $notifier,
     ) {}
 
     /**
@@ -54,6 +56,7 @@ final class UpdateProposal
             }
 
             ProposalUpdated::dispatch($proposal, $actor);
+            $this->notifier->proposalUpdated($proposal, $actor);
 
             // Unlike SubmitProposal's fresh copy, this one can have existing
             // reviews — an edited proposal is never brand new. Without these,

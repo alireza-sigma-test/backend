@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\HistoryController;
 use App\Http\Controllers\Api\InviteController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ProposalController;
 use App\Http\Controllers\Api\PublicStatsController;
 use App\Http\Controllers\Api\ReviewController;
@@ -56,6 +57,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->whereNumber('review');
         Route::patch('/proposals/{proposal}/status', [StatusController::class, 'update'])->whereNumber('proposal');
     });
+
+    // Deliberately outside the `verified` group above. These touch nothing
+    // but the caller's own read-state and disclose nothing they were not
+    // already sent; gating them would leave an unverified reviewer with a
+    // badge that only ever counts up and no way to clear it.
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll']);
+    // Registered AFTER read-all so the literal segment wins: notification ids
+    // are uuids, and `{notification}` would otherwise swallow "read-all" and
+    // 404 it.
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'read']);
 
     Route::get('/tags', [TagController::class, 'index']);
     Route::get('/stats', StatsController::class);
