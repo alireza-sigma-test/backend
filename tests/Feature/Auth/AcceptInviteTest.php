@@ -4,6 +4,7 @@
 
 use App\Enums\CodePurpose;
 use App\Models\User;
+use App\Models\UserCode;
 use App\Services\UserCodeService;
 use Database\Seeders\RoleSeeder;
 
@@ -29,6 +30,42 @@ describe('accepting an invitation', function () {
         // And the new password actually works.
         $this->postJson('/api/login', ['email' => 'nadia@example.com', 'password' => 'a-strong-password'])
             ->assertOk();
+    });
+
+    // Final review, finding 3: UserCodeService::issue() upper-cases every
+    // invite code, but AcceptInviteRequest used to pass the submitted code
+    // through unchanged, and Hash::check is case-sensitive. A code retyped
+    // in lowercase — rather than pasted — failed and burned one of only
+    // five attempts, directly feeding finding 2's permanent lockout.
+    it('accepts an invite code typed in lowercase or with stray whitespace', function () {
+        // Given
+        $user = User::factory()->admin()->unverified()->create(['email' => 'nadia@example.com']);
+        $code = app(UserCodeService::class)->issue($user, CodePurpose::Invite);
+
+        // When
+        $response = $this->postJson('/api/invites/accept', [
+            'email' => 'nadia@example.com', 'code' => '  '.strtolower($code).'  ',
+            'password' => 'a-strong-password', 'password_confirmation' => 'a-strong-password',
+        ]);
+
+        // Then
+        $response->assertCreated()->assertJsonPath('user.is_verified', true);
+    });
+
+    it('does not increment the attempt counter for a code that only differs by case', function () {
+        // Given
+        $user = User::factory()->admin()->unverified()->create(['email' => 'nadia@example.com']);
+        $code = app(UserCodeService::class)->issue($user, CodePurpose::Invite);
+        $row = UserCode::where('user_id', $user->id)->where('purpose', CodePurpose::Invite)->sole();
+
+        // When — submitted lowercase, previously indistinguishable from a wrong code.
+        $this->postJson('/api/invites/accept', [
+            'email' => 'nadia@example.com', 'code' => strtolower($code),
+            'password' => 'a-strong-password', 'password_confirmation' => 'a-strong-password',
+        ])->assertCreated();
+
+        // Then — consumed as a match, not counted as one of five failed attempts.
+        expect($row->fresh())->attempts->toBe(0)->consumed_at->not->toBeNull();
     });
 
     it('answers identically for a wrong code and an unknown address', function () {
