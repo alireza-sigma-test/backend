@@ -26,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
     {
         RateLimiter::for('login', fn (Request $r) => Limit::perMinute(6)->by($r->ip()));
         RateLimiter::for('register', fn (Request $r) => Limit::perMinute(6)->by($r->ip()));
+        RateLimiter::for('verify-email', fn (Request $r) => Limit::perMinute(6)->by($r->user()?->id ?: $r->ip()));
+        RateLimiter::for('resend-code', fn (Request $r) => Limit::perMinutes(10, 3)->by($r->user()?->id ?: $r->ip()));
 
         // Scramble ships a `local`-only gate. This is a portfolio API whose
         // reviewers run it in Docker with APP_ENV=local, so the default would

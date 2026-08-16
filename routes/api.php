@@ -3,6 +3,7 @@
 // routes/api.php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\HistoryController;
 use App\Http\Controllers\Api\ProposalController;
 use App\Http\Controllers\Api\ReviewController;
@@ -21,6 +22,15 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:lo
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+
+    // Deliberately here, directly in auth:sanctum — not nested inside any
+    // verification gate. The caller is precisely a signed-in but unverified
+    // user, so gating these would close the only route out of unverified and
+    // make it impossible for any account to ever become one. A later task
+    // wraps the mutating routes below in a `verified` group; do not let that
+    // restructure sweep these two in.
+    Route::post('/email/verify', [EmailVerificationController::class, 'verify'])->middleware('throttle:verify-email');
+    Route::post('/email/resend', [EmailVerificationController::class, 'resend'])->middleware('throttle:resend-code');
 
     Route::post('/proposals', [ProposalController::class, 'store']);
     Route::get('/proposals', [ProposalController::class, 'index']);
