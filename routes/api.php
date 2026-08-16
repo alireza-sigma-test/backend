@@ -2,6 +2,7 @@
 
 // routes/api.php
 
+use App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\HistoryController;
@@ -50,4 +51,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/tags', [TagController::class, 'index']);
     Route::get('/stats', StatsController::class);
+
+    Route::prefix('admin')->group(function () {
+        Route::get('/users', [Admin\UserController::class, 'index']);
+
+        Route::middleware('verified')->group(function () {
+            Route::post('/users', [Admin\UserController::class, 'store']);
+            Route::patch('/users/{user}/role', [Admin\UserController::class, 'updateRole'])->whereNumber('user');
+        });
+    });
 });
