@@ -18,6 +18,19 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    // NOT `withRouting(channels: …)`, which `install:broadcasting` writes by
+    // default. That shorthand calls Broadcast::routes(null), and the framework
+    // then falls back to `['middleware' => ['web']]` — a session guard, in an
+    // application that has no sessions and issues Sanctum bearer tokens. Every
+    // channel callback would receive a null user, so every private-channel
+    // subscription would 403 and no browser would ever connect. Naming
+    // `auth:sanctum` here is what makes routes/channels.php's identity and role
+    // checks run against a real user. Pinned by
+    // tests/Feature/Realtime/BroadcastAuthorizationTest.php.
+    ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
+        ['middleware' => ['auth:sanctum']],
+    )
     ->withMiddleware(function (Middleware $middleware): void {
         // No web login route exists; returning null keeps AuthenticationException
         // redirect-free so the handler renders a clean 401 for every client.

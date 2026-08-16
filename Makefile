@@ -21,8 +21,12 @@ up: ## Build, start, migrate and seed — the one command a reviewer runs
 	$(PHP) php artisan migrate --force --seed
 	$(PHP) php artisan storage:link
 	@echo "API        http://localhost:8000"
+	@echo "Websocket  ws://localhost:$${REVERB_HOST_PORT:-8080}  (Reverb)"
 	@echo "phpMyAdmin http://localhost:8081  (proposal / secret)"
 	@echo "Mailpit    http://localhost:8025"
+	@echo ""
+	@echo "The queue worker and Reverb come up with everything else — there is no"
+	@echo "second terminal to open. Watch them with: docker compose logs -f queue reverb"
 
 down: ## Stop the stack
 	$(DC) down
