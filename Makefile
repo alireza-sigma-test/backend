@@ -27,8 +27,15 @@ up: ## Build, start, migrate and seed — the one command a reviewer runs
 down: ## Stop the stack
 	$(DC) down
 
-fresh: ## Drop, re-migrate and re-seed the database
+fresh: ## Drop, re-migrate and re-seed the database, then purge orphaned media files
 	$(PHP) php artisan migrate:fresh --seed
+	# migrate:fresh restarts media ids at 1, so a stale directory left over
+	# from a previous run can silently collide with (or just outlive) the
+	# fresh seed's media row. media-library:clean removes exactly the
+	# directories under the media disk (storage/app/private) that have no
+	# matching row in the table this migration just rebuilt — it never
+	# touches anything outside Media Library's own storage.
+	$(PHP) php artisan media-library:clean --force
 
 test: ## Run the Pest suite — ARGS="--filter=Foo" narrows it
 	$(PHP) php artisan test $(ARGS)
