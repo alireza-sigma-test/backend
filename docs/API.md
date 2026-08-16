@@ -96,7 +96,8 @@ Deliberately not `GET /api/stats` (§05): that endpoint returns
 is not public information, so it stays behind `auth:sanctum` and `admin`. This
 route returns only the two integers above and nothing else.
 
-Rate-limited to 30/min per IP.
+Rate-limited to 30/min per IP. The response is also cached for 5 minutes, so a
+count can lag a just-created proposal or a just-added reviewer by up to that long.
 
 ### `POST /api/register`
 Body: `name` (required, max 80), `email` (required, email, unique), `password` (required, min 8, confirmed), `password_confirmation`, `role` (required, in `speaker,reviewer` — **not** `admin`; see §07).
