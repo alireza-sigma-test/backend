@@ -6,6 +6,7 @@ namespace App\Actions\Proposals;
 
 use App\Data\ProposalData;
 use App\Enums\ProposalStatus;
+use App\Events\ProposalCreated;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\AttachmentStore;
@@ -35,6 +36,12 @@ final class SubmitProposal
             if ($data->attachment !== null) {
                 $this->attachments->store($proposal, $data->attachment);
             }
+
+            // Safe to dispatch from inside the transaction: ProposalBroadcast
+            // implements ShouldDispatchAfterCommit, so nothing leaves this
+            // process until the commit succeeds. A rollback below this line
+            // takes the broadcast with it.
+            ProposalCreated::dispatch($proposal, $author);
 
             return $proposal->load(['author.roles', 'tags', 'media']);
         });

@@ -5,6 +5,7 @@
 namespace App\Actions\Proposals;
 
 use App\Data\StatusChangeData;
+use App\Events\ProposalStatusChanged;
 use App\Models\Proposal;
 use App\Models\ProposalStatusChange;
 use App\Models\User;
@@ -46,6 +47,11 @@ final class ChangeProposalStatus
                 'note' => $data->note,
                 'changed_by' => $admin->id,
             ]);
+
+            // Only on a real decision. The no-op path above returns early
+            // without an audit row, and it must not broadcast either — the
+            // author would be told their proposal changed when it did not.
+            ProposalStatusChanged::dispatch($proposal, $admin);
 
             return [
                 'proposal' => $proposal->fresh(['author.roles', 'tags', 'media']),

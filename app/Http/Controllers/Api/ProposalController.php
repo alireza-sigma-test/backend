@@ -75,7 +75,7 @@ class ProposalController extends Controller
         // call is the separate "can this viewer edit it" check (owner + pending).
         $this->authorize('update', $proposal);
 
-        $updated = $action->handle($proposal, $request->toData());
+        $updated = $action->handle($request->user(), $proposal, $request->toData());
 
         return response()->json(new ProposalResource($updated));
     }

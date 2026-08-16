@@ -5,7 +5,9 @@
 namespace App\Actions\Proposals;
 
 use App\Data\UpdateProposalData;
+use App\Events\ProposalUpdated;
 use App\Models\Proposal;
+use App\Models\User;
 use App\Services\AttachmentStore;
 use App\Services\TagSynchronizer;
 use Illuminate\Support\Facades\DB;
@@ -17,9 +19,15 @@ final class UpdateProposal
         private AttachmentStore $attachments,
     ) {}
 
-    public function handle(Proposal $proposal, UpdateProposalData $data): Proposal
+    /**
+     * $actor is passed in rather than read back off $proposal->author. Today
+     * the policy lets only the owner edit, so the two are the same user — but
+     * the event records who did it, and re-deriving that from the row would
+     * quietly credit the owner the day an admin is allowed to fix a typo.
+     */
+    public function handle(User $actor, Proposal $proposal, UpdateProposalData $data): Proposal
     {
-        return DB::transaction(function () use ($proposal, $data): Proposal {
+        return DB::transaction(function () use ($actor, $proposal, $data): Proposal {
             $changes = [];
 
             if ($data->title !== null) {
@@ -44,6 +52,8 @@ final class UpdateProposal
                 // appends. Removal is a separate endpoint.
                 $this->attachments->store($proposal, $data->attachment);
             }
+
+            ProposalUpdated::dispatch($proposal, $actor);
 
             // Unlike SubmitProposal's fresh copy, this one can have existing
             // reviews — an edited proposal is never brand new. Without these,

@@ -56,6 +56,10 @@ services:
     depends_on:
       mysql: { condition: service_healthy }
       redis: { condition: service_started }
+      # Not for startup ordering's sake — a broadcast job that runs before
+      # Reverb is up simply retries. It is so the very first `make up` does not
+      # log a confusing "Could not resolve host: reverb" as its opening act.
+      reverb: { condition: service_started }
 
   # The websocket server. Separate from `php` because it is a long-lived
   # event-loop process, not a request handler: nginx/php-fpm answers one HTTP
