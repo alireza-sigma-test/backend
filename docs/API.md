@@ -82,6 +82,22 @@ Roles: `speaker`, `reviewer`, `admin`.
 
 ## 01 · Sign in & register
 
+### `GET /api/public-stats`
+No auth — the only unauthenticated route in the app. Powers the two marketing
+counters on the signed-out screen, shown before a visitor registers or logs in.
+
+Returns `200` → `{ proposals_this_year: int, reviewers: int }` — e.g.
+`{"proposals_this_year": 6, "reviewers": 4}` against the seeded database.
+`reviewers` counts users holding the reviewer role rather than distinct review
+authors, so the count can't disclose which proposals have been reviewed.
+
+Deliberately not `GET /api/stats` (§05): that endpoint returns
+`pending`/`approved`/`rejected`/`ready_to_decide` — the decision pipeline — which
+is not public information, so it stays behind `auth:sanctum` and `admin`. This
+route returns only the two integers above and nothing else.
+
+Rate-limited to 30/min per IP.
+
 ### `POST /api/register`
 Body: `name` (required, max 80), `email` (required, email, unique), `password` (required, min 8, confirmed), `password_confirmation`, `role` (required, in `speaker,reviewer` — **not** `admin`; see §07).
 
@@ -175,6 +191,13 @@ Role: owning `speaker`, and only while `status = pending`. Same fields as create
 
 ### `DELETE /api/proposals/{id}`
 Role: owning `speaker` while pending, or `admin`. `204`.
+
+Soft delete: the row gets a `deleted_at` timestamp rather than being removed.
+Its reviews and status-change history are left in place, untouched; the
+proposal itself disappears from `GET /api/proposals`, `GET /api/proposals/{id}`
+and every aggregate (`GET /api/stats`, `GET /api/public-stats` above, and the
+`counts` object on `GET /api/proposals`). The attachment is deleted from
+storage in the same transaction, and there is no restore endpoint.
 
 ### `DELETE /api/proposals/{id}/attachment`
 Role: owning `speaker`, only while `status = pending`. Removes the PDF without touching the rest

@@ -72,6 +72,13 @@ All passwords are `password`.
 Plus Ilya Petrov and Nia Okafor (speakers), Jonas Adeyemi, Sofia Lindqvist and
 Theo Nakamura (reviewers) — 6 proposals across all three statuses.
 
+`GET /api/public-stats` — the signed-out screen's two counters, and the only
+route in this API that needs no token — reads this same seed:
+`{"proposals_this_year": 6, "reviewers": 4}`. The design mockup's landing page
+shows `248` and `31`; a freshly seeded database showing small honest numbers
+instead is expected, not a bug — nothing inflates this endpoint's counts to
+match a marketing screenshot.
+
 ## Architecture
 
 `Form Request` → `readonly DTO` → `Action` (owns the transaction) → `API Resource`.
@@ -117,6 +124,18 @@ and reviewed by hand, not enforced by a test.
   one at a time, per-review scores are recoverable by differencing successive averages
   (verified live: `[4, 5, 3, 1]` recovered exactly from observed averages
   `4 → 4.5 → 4 → 3.3`), so the guarantee is reviewer anonymity, not score secrecy.
+- **Deleting a proposal is a soft delete — done to protect other rows, not to
+  enable a restore feature.** `reviews`, `proposal_tag` and
+  `proposal_status_changes` all declare `cascadeOnDelete` against `proposals`,
+  so a hard `DELETE` would destroy every reviewer's rating and comment and the
+  whole audit trail as a side effect of one speaker withdrawing a talk;
+  `SoftDeletes` on `App\Models\Proposal` keeps that data intact instead.
+  **Deletion is still one-way from the API's point of view** — there is no
+  restore endpoint, no `withTrashed` surface, and no admin listing of deleted
+  proposals. The attachment is the tell: `DeleteProposal` removes the media
+  from storage inside the same transaction, before the row is even
+  soft-deleted, so a later tier adding a restore feature has to solve for the
+  file already being gone, not just for undeleting a row.
 - **No self-registered administrators.** `POST /api/register` refuses `role: admin`
   with `422` — it only ever hands out `speaker` or `reviewer`. The seeded
   `alex@example.com` account (above) is the only admin that wasn't invited; it exists
@@ -171,7 +190,8 @@ ever demote the system down to zero admins with no recovery short of the databas
 ## Tests
 
 `make test` — Pest, `describe`/`it` with Given-When-Then bodies, run against real
-MySQL so collation-dependent `LIKE` searches behave exactly as in production. Coverage is deliberately
+MySQL so collation-dependent `LIKE` searches behave exactly as in production —
+254 tests, 765 assertions, as of this branch. Coverage is deliberately
 curated rather than exhaustive: every policy denial has a test.
 
 Tests are backend-only by deliberate scope; the frontend ships without a test suite.
@@ -227,6 +247,12 @@ are deliberately **not** in that guard: a review id is only reachable through a 
 the caller can already see (there is no separate review index endpoint), and any reviewer
 or admin can already read every review on a proposal via `GET /api/proposals/{id}` — so
 there is nothing to enumerate. Those two routes deny with a plain policy `403` instead.
+
+One further route sits outside both tables above: `GET /api/public-stats`, the
+only endpoint in this API that isn't behind `auth:sanctum` — added for the
+signed-out screen's two marketing counters and rate-limited to 30/min per IP,
+separately from every limiter listed above. Its shape, and why it doesn't just
+reuse `GET /api/stats`, are in [`docs/API.md`](docs/API.md) §01.
 
 ## Generated API docs
 
