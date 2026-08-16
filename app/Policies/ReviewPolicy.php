@@ -13,12 +13,12 @@ class ReviewPolicy
     /** Author only, and only while the proposal has no decision yet — matches ProposalPolicy::review. */
     public function update(User $user, Review $review): bool
     {
-        return $user->id === $review->user_id && $this->proposalIsPending($review);
+        return $user->hasVerifiedEmail() && $user->id === $review->user_id && $this->proposalIsPending($review);
     }
 
     public function delete(User $user, Review $review): bool
     {
-        return $user->id === $review->user_id && $this->proposalIsPending($review);
+        return $user->hasVerifiedEmail() && $user->id === $review->user_id && $this->proposalIsPending($review);
     }
 
     /**

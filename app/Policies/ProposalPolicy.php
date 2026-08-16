@@ -21,34 +21,42 @@ class ProposalPolicy
         return $this->isStaff($user) || $this->owns($user, $proposal);
     }
 
+    // Verification also gates every mutating ability below. This keeps the
+    // `can` object truthful — otherwise the client renders a form (e.g. a
+    // review) that 403s on submit — even though the route-level `verified`
+    // middleware already refuses the request first; see EnsureEmailIsVerified.
     public function create(User $user): bool
     {
-        return $user->hasRole(UserRole::Speaker->value);
+        return $user->hasVerifiedEmail() && $user->hasRole(UserRole::Speaker->value);
     }
 
     /** Owning speaker, and only while no decision exists. */
     public function update(User $user, Proposal $proposal): bool
     {
-        return $this->owns($user, $proposal) && $proposal->status === ProposalStatus::Pending;
+        return $user->hasVerifiedEmail()
+            && $this->owns($user, $proposal) && $proposal->status === ProposalStatus::Pending;
     }
 
     public function delete(User $user, Proposal $proposal): bool
     {
-        return $user->hasRole(UserRole::Admin->value)
-            || ($this->owns($user, $proposal) && $proposal->status === ProposalStatus::Pending);
+        return $user->hasVerifiedEmail() && (
+            $user->hasRole(UserRole::Admin->value)
+            || ($this->owns($user, $proposal) && $proposal->status === ProposalStatus::Pending)
+        );
     }
 
     /** Reviewers only, never on their own proposal, never after a decision. */
     public function review(User $user, Proposal $proposal): bool
     {
-        return $user->hasRole(UserRole::Reviewer->value)
+        return $user->hasVerifiedEmail()
+            && $user->hasRole(UserRole::Reviewer->value)
             && ! $this->owns($user, $proposal)
             && $proposal->status === ProposalStatus::Pending;
     }
 
     public function changeStatus(User $user, Proposal $proposal): bool
     {
-        return $user->hasRole(UserRole::Admin->value);
+        return $user->hasVerifiedEmail() && $user->hasRole(UserRole::Admin->value);
     }
 
     public function viewHistory(User $user, Proposal $proposal): bool

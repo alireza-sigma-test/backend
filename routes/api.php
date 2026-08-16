@@ -32,17 +32,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/email/verify', [EmailVerificationController::class, 'verify'])->middleware('throttle:verify-email');
     Route::post('/email/resend', [EmailVerificationController::class, 'resend'])->middleware('throttle:resend-code');
 
-    Route::post('/proposals', [ProposalController::class, 'store']);
     Route::get('/proposals', [ProposalController::class, 'index']);
     Route::get('/proposals/{proposal}', [ProposalController::class, 'show'])->whereNumber('proposal');
-    Route::patch('/proposals/{proposal}', [ProposalController::class, 'update'])->whereNumber('proposal');
-    Route::delete('/proposals/{proposal}', [ProposalController::class, 'destroy'])->whereNumber('proposal');
-    Route::delete('/proposals/{proposal}/attachment', [ProposalController::class, 'destroyAttachment'])->whereNumber('proposal');
-    Route::post('/proposals/{proposal}/reviews', [ReviewController::class, 'store'])->whereNumber('proposal');
-    Route::patch('/reviews/{review}', [ReviewController::class, 'update'])->whereNumber('review');
-    Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->whereNumber('review');
-    Route::patch('/proposals/{proposal}/status', [StatusController::class, 'update'])->whereNumber('proposal');
     Route::get('/proposals/{proposal}/history', HistoryController::class)->whereNumber('proposal');
+
+    // One decision rather than eight chances to forget it.
+    Route::middleware('verified')->group(function () {
+        Route::post('/proposals', [ProposalController::class, 'store']);
+        Route::patch('/proposals/{proposal}', [ProposalController::class, 'update'])->whereNumber('proposal');
+        Route::delete('/proposals/{proposal}', [ProposalController::class, 'destroy'])->whereNumber('proposal');
+        Route::delete('/proposals/{proposal}/attachment', [ProposalController::class, 'destroyAttachment'])->whereNumber('proposal');
+        Route::post('/proposals/{proposal}/reviews', [ReviewController::class, 'store'])->whereNumber('proposal');
+        Route::patch('/reviews/{review}', [ReviewController::class, 'update'])->whereNumber('review');
+        Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->whereNumber('review');
+        Route::patch('/proposals/{proposal}/status', [StatusController::class, 'update'])->whereNumber('proposal');
+    });
 
     Route::get('/tags', [TagController::class, 'index']);
     Route::get('/stats', StatsController::class);

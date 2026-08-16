@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Middleware\EnsureEmailIsVerified;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -17,6 +19,34 @@ return Application::configure(basePath: dirname(__DIR__))
         // No web login route exists; returning null keeps AuthenticationException
         // redirect-free so the handler renders a clean 401 for every client.
         $middleware->redirectGuestsTo(fn () => null);
+
+        // Deliberately shadows Laravel's own `verified` alias: the stock
+        // Illuminate\Auth\Middleware\EnsureEmailIsVerified redirects to a
+        // `verification.notice` route this application does not define,
+        // which is the same shape as the earlier defect where a guest
+        // redirect to a missing named route produced a 500 with a stack
+        // trace. Ours returns a stable JSON 403 with a machine-readable
+        // `code` instead.
+        $middleware->alias(['verified' => EnsureEmailIsVerified::class]);
+
+        // Measured, not assumed: Laravel's default $middlewarePriority runs
+        // SubstituteBindings (route model binding) before any route
+        // middleware that isn't in that list, `verified` included. Left at
+        // its default position, an unverified caller hitting a nonexistent
+        // proposal/review id 404s from a failed binding before `verified`
+        // ever runs, while the same caller hitting a real-but-hidden id
+        // reaches `verified` and gets 403 — a status-code difference that
+        // discloses which ids exist, reopening the oracle
+        // NotFoundEnumerationTest closes elsewhere. Running `verified` before
+        // binding (and after auth, which the default priority already
+        // guarantees relative to bindings) makes every id — real, hidden or
+        // fake — 403 alike for an unverified caller; existence is decided
+        // later, only for callers who clear this gate. Pinned by
+        // tests/Feature/Auth/UnverifiedWriteGateTest.php.
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: EnsureEmailIsVerified::class,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $isApiRequest = fn (Request $request) => $request->is('api/*') || $request->expectsJson();
