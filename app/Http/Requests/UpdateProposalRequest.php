@@ -42,13 +42,24 @@ class UpdateProposalRequest extends FormRequest
                 },
                 'max:40',
             ],
-            'attachment' => ['sometimes', 'nullable', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:4096'],
+            // No `nullable`: `UpdateProposal` only acts when the attachment is
+            // non-null, so `{"attachment": null}` used to be accepted as a
+            // silent 200 no-op that left the PDF exactly as it was — the
+            // opposite of what a client would read "null" to mean. Rejecting
+            // it here makes the `file` rule fail on an explicit null (422,
+            // "must be a file"), which pushes the client to the dedicated
+            // `DELETE /proposals/{id}/attachment` endpoint that already exists
+            // for clearing it — one way to remove an attachment, not two.
+            'attachment' => ['sometimes', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:4096'],
         ];
     }
 
     public function messages(): array
     {
-        return ['attachment.max' => 'The attachment must be 4 MB or smaller.'];
+        return [
+            'attachment.max' => 'The attachment must be 4 MB or smaller.',
+            'attachment.file' => 'The attachment cannot be null — use DELETE /proposals/{id}/attachment to remove it.',
+        ];
     }
 
     public function toData(): UpdateProposalData

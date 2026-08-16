@@ -6,11 +6,16 @@ use App\Models\Proposal;
 use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
+use App\Services\AttachmentStore;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Support\Facades\Storage;
 
 describe('updating a proposal', function () {
 
-    beforeEach(fn () => $this->seed(RoleSeeder::class));
+    beforeEach(function () {
+        $this->seed(RoleSeeder::class);
+        Storage::fake('local');
+    });
 
     it('changes only the fields the owner sends', function () {
         // Given
@@ -132,5 +137,24 @@ describe('updating a proposal', function () {
         // When / Then
         $this->actingAs($dana)->patchJson("/api/proposals/{$proposal->id}", ['title' => 'short'])
             ->assertStatus(422)->assertJsonValidationErrors('title');
+    });
+
+    it('rejects an explicit null attachment rather than silently keeping the old one', function () {
+        // Given — a proposal with an existing PDF. `UpdateProposal` only acts
+        // when `$data->attachment !== null`, so `{"attachment": null}` used to
+        // 200 and leave the file exactly as it was — a silent no-op a client
+        // would read as a successful clear. There is a dedicated
+        // DELETE /proposals/{id}/attachment endpoint for that; PATCH should
+        // reject the value instead of pretending to honour it.
+        $dana = User::factory()->speaker()->create();
+        $proposal = Proposal::factory()->create(['user_id' => $dana->id, 'status' => 'pending']);
+        app(AttachmentStore::class)->store($proposal, fakePdf('outline.pdf'));
+
+        // When
+        $response = $this->actingAs($dana)->patchJson("/api/proposals/{$proposal->id}", ['attachment' => null]);
+
+        // Then
+        $response->assertStatus(422)->assertJsonValidationErrors('attachment');
+        expect($proposal->fresh()->attachment())->not->toBeNull();
     });
 });
