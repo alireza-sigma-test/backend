@@ -75,7 +75,13 @@ describe('generated API docs', function () {
         expect(data_get($document, 'paths./api/login.post.security'))->toBe([]);
 
         // Then — and a genuinely protected route must not have been swept
-        // into that same public override.
-        expect(data_get($document, 'paths./api/stats.get.security'))->not->toBe([]);
+        // into that same public override. `/api/stats` carries no per-operation
+        // `security` override of its own — protection comes from the
+        // document-level `security` requirement instead — so
+        // `not->toBe([])` was passing on `null` without ever inspecting the
+        // thing that actually protects the route. Assert the document-level
+        // requirement directly.
+        expect(data_get($document, 'paths./api/stats.get.security'))->toBeNull();
+        expect(data_get($document, 'security'))->toBe([['http' => []]]);
     });
 });
