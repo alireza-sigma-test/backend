@@ -73,7 +73,7 @@ Plus Ilya Petrov and Nia Okafor (speakers), Jonas Adeyemi, Sofia Lindqvist and
 Theo Nakamura (reviewers) — 6 proposals across all three statuses.
 
 `GET /api/public-stats` — the signed-out screen's two counters, and the only
-route in this API that needs no token — reads this same seed:
+route that returns application data without a token — reads this same seed:
 `{"proposals_this_year": 6, "reviewers": 4}`. The design mockup's landing page
 shows `248` and `31`; a freshly seeded database showing small honest numbers
 instead is expected, not a bug — nothing inflates this endpoint's counts to
@@ -249,10 +249,16 @@ or admin can already read every review on a proposal via `GET /api/proposals/{id
 there is nothing to enumerate. Those two routes deny with a plain policy `403` instead.
 
 One further route sits outside both tables above: `GET /api/public-stats`, the
-only endpoint in this API that isn't behind `auth:sanctum` — added for the
+only route that returns application data without a token — added for the
 signed-out screen's two marketing counters and rate-limited to 30/min per IP,
-separately from every limiter listed above. Its shape, and why it doesn't just
-reuse `GET /api/stats`, are in [`docs/API.md`](docs/API.md) §01.
+separately from every limiter listed above. It is *not* the only route outside
+`auth:sanctum`: `POST /api/register`, `POST /api/login` and
+`POST /api/invites/accept` sit outside it too — all three exchange credentials
+for a token rather than serving data to an anonymous caller — and so do the
+non-API routes `/`, `/up`, `/sanctum/csrf-cookie`, the generated docs at
+`/docs/api` and `/docs/api.json`, and the signed `storage/{path}` route. Its
+shape, and why it doesn't just reuse `GET /api/stats`, are in
+[`docs/API.md`](docs/API.md) §01.
 
 ## Generated API docs
 

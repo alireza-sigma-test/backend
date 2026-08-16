@@ -5,10 +5,13 @@
 > is authorized, and is covered by tests. One exception within that range:
 > `PATCH /api/proposals/{id}/status` writes the status and its audit record, but the
 > broadcast event this document says it fires is not dispatched — that requires
-> Reverb, which is not wired up yet. Section `08 · Live updates` (notifications, the
-> activity feed, and broadcast channels) is not built at all; it belongs to a later
-> tier (T3/T5). See the root [`README.md`](../README.md) for this submission's full
-> built/not-built breakdown.
+> Reverb, which is not wired up yet. A second exception, this one by design:
+> `GET /api/public-stats` has no authorization at all — it is deliberately
+> unauthenticated, so "is authorized" does not apply to it. It is rate-limited
+> and covered by tests like everything else. Section `08 · Live updates`
+> (notifications, the activity feed, and broadcast channels) is not built at all;
+> it belongs to a later tier (T3/T5). See the root [`README.md`](../README.md)
+> for this submission's full built/not-built breakdown.
 
 Laravel API consumed by the Vue front end. Every screen in `App Screens.dc.html` is mapped to the endpoints it calls, with the fields each one accepts and returns.
 
@@ -83,8 +86,12 @@ Roles: `speaker`, `reviewer`, `admin`.
 ## 01 · Sign in & register
 
 ### `GET /api/public-stats`
-No auth — the only unauthenticated route in the app. Powers the two marketing
-counters on the signed-out screen, shown before a visitor registers or logs in.
+No auth — the only route that returns application data without a token. (It is
+not the only route outside `auth:sanctum`: `POST /api/register`,
+`POST /api/login` and `POST /api/invites/accept` are too, but each of those
+exchanges credentials for a token rather than serving data to an anonymous
+caller.) Powers the two marketing counters on the signed-out screen, shown
+before a visitor registers or logs in.
 
 Returns `200` → `{ proposals_this_year: int, reviewers: int }` — e.g.
 `{"proposals_this_year": 6, "reviewers": 4}` against the seeded database.
@@ -196,9 +203,12 @@ Role: owning `speaker` while pending, or `admin`. `204`.
 Soft delete: the row gets a `deleted_at` timestamp rather than being removed.
 Its reviews and status-change history are left in place, untouched; the
 proposal itself disappears from `GET /api/proposals`, `GET /api/proposals/{id}`
-and every aggregate (`GET /api/stats`, `GET /api/public-stats` above, and the
-`counts` object on `GET /api/proposals`). The attachment is deleted from
-storage in the same transaction, and there is no restore endpoint.
+and every aggregate (`GET /api/stats`, `GET /api/public-stats` above, the
+`counts` object on `GET /api/proposals`, and the `proposals_count` on each tag
+in `GET /api/tags`). `GET /api/proposals/{id}/history` starts returning `404`
+as well, even though the status-change rows behind it are still there. The
+attachment is deleted from storage in the same transaction, and there is no
+restore endpoint.
 
 ### `DELETE /api/proposals/{id}/attachment`
 Role: owning `speaker`, only while `status = pending`. Removes the PDF without touching the rest
@@ -230,6 +240,12 @@ Returns `201` → `{ review: Review, average_rating, reviews_count }`.
 
 ### `PATCH /api/reviews/{id}` · `DELETE /api/reviews/{id}`
 Role: review author. Same fields; delete returns `204` and recomputes the average.
+
+If the parent proposal has been soft-deleted (§03), both return `403` — a review
+outlives its proposal by design, but it is frozen once the proposal is gone: there
+is no longer a pending proposal to authorize the edit against. The review row and
+its contribution to the historical record stay intact; only the ability to change
+it goes away.
 
 ---
 

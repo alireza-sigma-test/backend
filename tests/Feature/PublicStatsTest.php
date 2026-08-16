@@ -102,8 +102,9 @@ describe('public stats', function () {
 
         // Then it is still served. The test above cannot tell a per-IP
         // limiter from a global one — a single shared bucket also 429s on
-        // the 31st request — and on the app's only public route that
-        // difference is one scraper locking out every visitor.
+        // the 31st request — and on the one route that serves data to
+        // anonymous callers, that difference is a single scraper locking
+        // out every other visitor.
         $response->assertOk();
     });
 });
