@@ -1,6 +1,8 @@
 <?php
 
 use App\Exceptions\LastAdminException;
+use App\Exceptions\UserNotReinvitableException;
+use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureEmailIsVerified;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -28,7 +30,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // redirect to a missing named route produced a 500 with a stack
         // trace. Ours returns a stable JSON 403 with a machine-readable
         // `code` instead.
-        $middleware->alias(['verified' => EnsureEmailIsVerified::class]);
+        $middleware->alias([
+            'verified' => EnsureEmailIsVerified::class,
+            'admin' => EnsureAdmin::class,
+        ]);
 
         // Measured, not assumed: Laravel's default $middlewarePriority runs
         // SubstituteBindings (route model binding) before any route
@@ -47,6 +52,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             before: SubstituteBindings::class,
             prepend: EnsureEmailIsVerified::class,
+        );
+
+        // The same fix, generalised: `admin` guards the whole `admin` route
+        // group (see routes/api.php), so it has to run before
+        // SubstituteBindings for the same reason `verified` does — otherwise
+        // a verified non-admin hitting a real user id reaches route-model
+        // binding and then a Form Request's validation (which queries the
+        // database, e.g. AdminCreateUserRequest's `unique:users,email`)
+        // before the controller's `$this->authorize()` line ever runs. That
+        // ordering is exactly what turned POST /api/admin/users into a fifth,
+        // unthrottled enumeration oracle and gave the role-change route a
+        // 404-vs-403 user-id leak. See EnsureAdmin's docblock.
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: EnsureAdmin::class,
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -85,4 +105,15 @@ return Application::configure(basePath: dirname(__DIR__))
             'message' => $e->getMessage(),
             'code' => 'last_admin',
         ], 403));
+
+        // Thrown by ReinviteUser when the target has already claimed their
+        // account (a real password only they know) or was never invited
+        // through this flow at all (a self-registered user, whose real
+        // password reinvite would otherwise silently overwrite). 422, not
+        // 403: the caller is a genuine admin correctly authorized for the
+        // route — the request just doesn't apply to this user's state.
+        $exceptions->render(fn (UserNotReinvitableException $e) => response()->json([
+            'message' => $e->getMessage(),
+            'code' => 'not_reinvitable',
+        ], 422));
     })->create();

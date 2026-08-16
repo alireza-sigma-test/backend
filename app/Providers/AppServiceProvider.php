@@ -30,6 +30,15 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('resend-code', fn (Request $r) => Limit::perMinutes(10, 3)->by($r->user()?->id ?: $r->ip()));
         RateLimiter::for('accept-invite', fn (Request $r) => Limit::perMinute(6)->by($r->ip()));
 
+        // The whole admin group sat with no limiter at all — every other
+        // sensitive route in this app has a named one. Keyed by user id
+        // (every route inside is already behind auth:sanctum, so it is
+        // always present): defence in depth alongside the `admin` gate
+        // itself, not a substitute for it — the gate is what stops a
+        // non-admin from reaching the enumeration surface; this just caps
+        // how fast even an admin account can be made to probe it.
+        RateLimiter::for('admin', fn (Request $r) => Limit::perMinute(30)->by($r->user()?->id ?: $r->ip()));
+
         // Scramble ships a `local`-only gate. This is a portfolio API whose
         // reviewers run it in Docker with APP_ENV=local, so the default would
         // hide the docs from exactly the audience they exist for. Opening them

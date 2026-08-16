@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Actions\Admin\ChangeUserRole;
 use App\Actions\Admin\CreateUserByAdmin;
+use App\Actions\Admin\ReinviteUser;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AdminCreateUserRequest;
@@ -41,6 +42,15 @@ class UserController extends Controller
         $this->authorize('updateRole', $user);
 
         $updated = $action->handle($user, UserRole::from($request->string('role')->value()));
+
+        return response()->json(new UserResource($updated));
+    }
+
+    public function reinvite(User $user, ReinviteUser $action): JsonResponse
+    {
+        $this->authorize('reinvite', $user);
+
+        $updated = $action->handle($user);
 
         return response()->json(new UserResource($updated));
     }

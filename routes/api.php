@@ -54,12 +54,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tags', [TagController::class, 'index']);
     Route::get('/stats', StatsController::class);
 
-    Route::prefix('admin')->group(function () {
+    // `admin` refuses every non-admin before route-model binding or any Form
+    // Request validation runs (see EnsureAdmin and its prepend in
+    // bootstrap/app.php) — closing the fifth enumeration oracle on `store`
+    // and the id-disclosure leak on `updateRole` at the same time. `verified`
+    // still nests inside it, same as the proposal/review group above: index
+    // stays open to an unverified admin, the two writes do not.
+    Route::prefix('admin')->middleware(['admin', 'throttle:admin'])->group(function () {
         Route::get('/users', [Admin\UserController::class, 'index']);
 
         Route::middleware('verified')->group(function () {
             Route::post('/users', [Admin\UserController::class, 'store']);
             Route::patch('/users/{user}/role', [Admin\UserController::class, 'updateRole'])->whereNumber('user');
+            Route::post('/users/{user}/reinvite', [Admin\UserController::class, 'reinvite'])->whereNumber('user');
         });
     });
 });

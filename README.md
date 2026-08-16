@@ -147,7 +147,20 @@ role, **no password field**; the user is created with a random, unusable passwor
 nobody ever sees. That mails a 12-character invitation code, valid for 48 hours, and
 the invitee calls `POST /api/invites/accept` with their chosen password to claim the
 account — which also verifies their email and returns a token, the same shape as
-`POST /api/login`.
+`POST /api/login`. The code is normalised (upper-cased, trimmed) before comparison,
+so retyping it in lowercase from a copy-paste-resistant mail client doesn't silently
+burn one of the five attempts.
+
+**A lapsed invite is not a dead end.** If the 48 hours pass, or all five attempts are
+spent, an admin can reissue it — `POST /api/admin/users/{user}/reinvite` — which mails
+a fresh code and replaces whatever one was still outstanding. It refuses (`422`,
+`{"code": "not_reinvitable"}`) for anyone who already claimed their account, since
+reissuing would silently overwrite a real password only they know, and for anyone who
+was never invited through this flow at all — a self-registered user who simply hasn't
+verified yet also has a real password of their own that this route must never touch.
+Every route under `/api/admin` is behind an admin gate that runs before route-model
+binding or any request validation, the same shape as the verification gate described
+above; see *API contract* for what that closes.
 
 Two guardrails keep the last admin from locking everyone out: **an admin can never
 change their own role**, and the system **refuses any role change that would leave
@@ -182,7 +195,7 @@ removal, and the two admin-only read endpoints:
 | `GET /api/proposals/{id}/history` | `admin` | `200` |
 | `GET /api/stats` | `admin` | `200` |
 
-This tier added six more — email verification/resend and admin-managed accounts,
+This tier added seven more — email verification/resend and admin-managed accounts,
 detailed in *Email verification & admin-managed accounts* above:
 
 | Endpoint | Role | Status |
@@ -192,7 +205,17 @@ detailed in *Email verification & admin-managed accounts* above:
 | `GET /api/admin/users` | `admin` | `200` |
 | `POST /api/admin/users` | `admin` | `201` |
 | `PATCH /api/admin/users/{user}/role` | `admin` | `200` |
+| `POST /api/admin/users/{user}/reinvite` | `admin` | `200` |
 | `POST /api/invites/accept` | none — public | `201` |
+
+Every route under `/api/admin` sits behind an `admin` gate that runs before
+route-model binding and before any Form Request is resolved — closing an
+email-existence oracle on the create route (a taken address and a free one used to
+`422` vs `403` differently for a verified non-admin, before this route ever checked
+who was asking) and a user-id oracle on the role-change route (a real id and a fake
+one used to `403` vs `404` differently, for the same reason). The group carries its
+own rate limit — 30/min per authenticated user — on top of the per-route limiters
+already listed above.
 
 The 404-enumeration guard covers exactly six proposal-scoped routes: `PATCH /api/proposals/{id}`,
 `DELETE /api/proposals/{id}`, `DELETE /api/proposals/{id}/attachment`,

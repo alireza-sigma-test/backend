@@ -81,7 +81,54 @@ describe('admin user management', function () {
             ])->assertForbidden();
             $this->actingAs($user)->patchJson("/api/admin/users/{$target->id}/role", ['role' => 'admin'])
                 ->assertForbidden();
+            $this->actingAs($user)->postJson("/api/admin/users/{$target->id}/reinvite")->assertForbidden();
         }
+    });
+
+    // Final review, finding 1: AdminCreateUserRequest's `unique:users,email`
+    // ran before UserController::store's authorize() call, so a verified
+    // non-admin could tell a taken email (422) from a free one (403) —
+    // the fifth enumeration oracle. The fix (EnsureAdmin, prepended before
+    // SubstituteBindings in bootstrap/app.php) refuses the request before
+    // the Form Request is ever resolved, so both addresses now answer with
+    // the exact same refusal.
+    it('refuses a duplicate email and a fresh one identically for a verified non-admin, closing the fifth enumeration oracle', function () {
+        // Given
+        $existing = User::factory()->speaker()->create(['email' => 'alex@example.com']);
+        $nonAdmin = User::factory()->speaker()->create();
+
+        // When
+        $onExisting = $this->actingAs($nonAdmin)->postJson('/api/admin/users', [
+            'name' => 'X', 'email' => $existing->email, 'role' => 'admin',
+        ]);
+        $onFresh = $this->actingAs($nonAdmin)->postJson('/api/admin/users', [
+            'name' => 'X', 'email' => 'nobody-fresh@example.com', 'role' => 'admin',
+        ]);
+
+        // Then — same status, same body, whether or not the address exists.
+        $onExisting->assertForbidden();
+        $onFresh->assertForbidden()->assertExactJson($onExisting->json());
+        expect(User::where('email', 'nobody-fresh@example.com')->exists())->toBeFalse();
+    });
+
+    // Final review, finding 4: route-model binding resolved {user} before
+    // authorize('updateRole', ...) ran, so a real id 403'd while a fake one
+    // 404'd — an id-existence oracle of exactly the shape
+    // UnverifiedWriteGateTest and NotFoundEnumerationTest already pin for
+    // proposals and reviews. The same EnsureAdmin fix closes it here too.
+    it('refuses a role change for a real user id and a nonexistent one identically, so a verified non-admin learns nothing about which ids exist', function () {
+        // Given
+        $nonAdmin = User::factory()->speaker()->create();
+        $real = User::factory()->speaker()->create();
+        $fakeId = $real->id + 999_000;
+
+        // When
+        $onReal = $this->actingAs($nonAdmin)->patchJson("/api/admin/users/{$real->id}/role", ['role' => 'reviewer']);
+        $onFake = $this->actingAs($nonAdmin)->patchJson("/api/admin/users/{$fakeId}/role", ['role' => 'reviewer']);
+
+        // Then
+        $onReal->assertForbidden();
+        $onFake->assertForbidden()->assertExactJson($onReal->json());
     });
 
     it('requires authentication', function () {
@@ -89,10 +136,11 @@ describe('admin user management', function () {
         $this->getJson('/api/admin/users')->assertUnauthorized();
     });
 
-    it('lets an unverified admin list, but gates both writes behind verification', function () {
+    it('lets an unverified admin list, but gates every write behind verification', function () {
         // Given — the brief calls for this case; nothing pinned it before,
-        // and the split (200 on the read, 403 on both writes) is exactly
-        // the kind of thing a later routing change could silently flip.
+        // and the split (200 on the read, 403 on every write, reinvite
+        // included) is exactly the kind of thing a later routing change
+        // could silently flip.
         $admin = User::factory()->admin()->unverified()->create();
         $target = User::factory()->speaker()->create();
 
@@ -104,6 +152,9 @@ describe('admin user management', function () {
         ])->assertForbidden()->assertJsonPath('code', 'email_unverified');
 
         $this->actingAs($admin)->patchJson("/api/admin/users/{$target->id}/role", ['role' => 'reviewer'])
+            ->assertForbidden()->assertJsonPath('code', 'email_unverified');
+
+        $this->actingAs($admin)->postJson("/api/admin/users/{$target->id}/reinvite")
             ->assertForbidden()->assertJsonPath('code', 'email_unverified');
     });
 
