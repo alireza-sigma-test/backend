@@ -150,6 +150,28 @@ describe('broadcast channel authorization', function () {
         }
     });
 
+    it('answers the browser preflight for the SPA origin', function () {
+        // Given — /broadcasting/auth is registered at the root, not under
+        // api/*, so it needs its own entry in config/cors.php's `paths`.
+        // Without it the browser blocks the request before it is sent and Echo
+        // reports a bare "Failed to fetch": no status code, nothing in the
+        // server log, and nothing any other test in this suite can see, since
+        // CORS is enforced in the browser and never reaches PHP. This one was
+        // found by two real browsers, and this test exists so it stays found.
+        config(['cors.allowed_origins' => ['http://localhost:3000']]);
+
+        // When
+        $response = $this->call('OPTIONS', '/broadcasting/auth', server: [
+            'HTTP_ORIGIN' => 'http://localhost:3000',
+            'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
+            'HTTP_ACCESS_CONTROL_REQUEST_HEADERS' => 'authorization,content-type',
+        ]);
+
+        // Then
+        $response->assertNoContent()
+            ->assertHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+    });
+
     it('refuses a channel that is not defined at all', function () use ($authorize) {
         // Given — the default is refusal, not admission. A typo'd or removed
         // channel name must not become an open one.

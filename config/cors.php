@@ -15,7 +15,15 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    // `broadcasting/auth` is not under `api/*` — it is a framework route
+    // registered at the root by withBroadcasting() in bootstrap/app.php, and
+    // the SPA on another origin has to POST to it before it can join any
+    // private channel. Without this entry the browser blocks the request
+    // outright and Echo reports a bare "Failed to fetch": no status code, no
+    // server-side log line, and nothing a backend test can see, because CORS
+    // is enforced in the browser and never reaches PHP. Measured — this is
+    // what the first two-browser run actually produced.
+    'paths' => ['api/*', 'broadcasting/auth', 'sanctum/csrf-cookie'],
 
     'allowed_methods' => ['*'],
 
