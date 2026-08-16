@@ -19,6 +19,9 @@ class UserFactory extends Factory
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'password' => Hash::make('password'),
+            // Verified by default: almost every test needs a user who can act, and
+            // making the exception explicit keeps those tests readable.
+            'email_verified_at' => now(),
         ];
     }
 
@@ -35,5 +38,10 @@ class UserFactory extends Factory
     public function admin(): static
     {
         return $this->afterCreating(fn (User $u) => $u->assignRole(UserRole::Admin->value));
+    }
+
+    public function unverified(): static
+    {
+        return $this->state(fn () => ['email_verified_at' => null]);
     }
 }
