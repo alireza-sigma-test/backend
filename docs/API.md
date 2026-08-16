@@ -150,7 +150,9 @@ Role: owning `speaker`, and only while `status = pending`. Same fields as create
 Role: owning `speaker` while pending, or `admin`. `204`.
 
 ### `DELETE /api/proposals/{id}/attachment`
-Removes the PDF without touching the rest of the proposal. `204`.
+Role: owning `speaker`, only while `status = pending`. Removes the PDF without touching the rest
+of the proposal. `204`. Gated on the same rule as `PATCH` above — an admin can delete the whole
+proposal but cannot strip just its PDF; a decided proposal's attachment is as frozen as its text.
 
 ---
 
@@ -196,7 +198,8 @@ Role: `admin` only.
 Returns `200` → `{ proposal: Proposal, changed_by: User, changed_at }`. Writes a status-change record and fires the broadcast event.
 
 ### `GET /api/proposals/{id}/history`
-Role: `admin`. Returns `[{ from, to, note, changed_by: User, changed_at }]` for the audit trail.
+Role: `admin`. Returns `{ data: [{ id, from, to, note, changed_by: User, changed_at }] }` for the
+audit trail, newest first — the same `data` envelope as `GET /api/proposals`.
 
 ### `GET /api/stats`
 Role: `admin`. `{ total, pending, approved, rejected, ready_to_decide }` for the header counters.

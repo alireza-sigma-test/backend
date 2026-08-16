@@ -142,7 +142,7 @@ removal, and the two admin-only read endpoints:
 |---|---|---|
 | `PATCH /api/proposals/{id}` | owning speaker, only while `pending` | `200` |
 | `DELETE /api/proposals/{id}` | owning speaker while `pending`, or `admin` | `204` |
-| `DELETE /api/proposals/{id}/attachment` | owning speaker while `pending`, or `admin` | `204` |
+| `DELETE /api/proposals/{id}/attachment` | owning speaker, only while `pending` | `204` |
 | `PATCH /api/reviews/{id}` | review author | `200` |
 | `DELETE /api/reviews/{id}` | review author | `204` |
 | `GET /api/proposals/{id}/history` | `admin` | `200` |
