@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\HistoryController;
+use App\Http\Controllers\Api\InviteController;
 use App\Http\Controllers\Api\ProposalController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\StatsController;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Route;
 // out of logging in.
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
+Route::post('/invites/accept', [InviteController::class, 'accept'])->middleware('throttle:accept-invite');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
