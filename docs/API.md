@@ -1,13 +1,14 @@
 # API surface — Proposal Review
 
-> **Implementation status.** Sections `01`–`05` below are fully built and live as of
-> this submission: every endpoint through `GET /api/stats` exists, is authorized, and
-> is covered by tests. One exception within that range: `PATCH /api/proposals/{id}/status`
-> writes the status and its audit record, but the broadcast event this document says it
-> fires is not dispatched — that requires Reverb, which is not wired up yet. Section
-> `06 · Live updates` (notifications, the activity feed, and broadcast channels) is not
-> built at all; it belongs to a later tier (T3/T5). See the root [`README.md`](../README.md)
-> for this submission's full built/not-built breakdown.
+> **Implementation status.** Sections `01`–`07` below are fully built and live as of
+> this submission: every endpoint through `PATCH /api/admin/users/{user}/role` exists,
+> is authorized, and is covered by tests. One exception within that range:
+> `PATCH /api/proposals/{id}/status` writes the status and its audit record, but the
+> broadcast event this document says it fires is not dispatched — that requires
+> Reverb, which is not wired up yet. Section `08 · Live updates` (notifications, the
+> activity feed, and broadcast channels) is not built at all; it belongs to a later
+> tier (T3/T5). See the root [`README.md`](../README.md) for this submission's full
+> built/not-built breakdown.
 
 Laravel API consumed by the Vue front end. Every screen in `App Screens.dc.html` is mapped to the endpoints it calls, with the fields each one accepts and returns.
 
@@ -15,6 +16,7 @@ Laravel API consumed by the Vue front end. Every screen in `App Screens.dc.html`
 - Auth: Laravel Sanctum bearer token (`Authorization: Bearer <token>`)
 - Content type: `application/json`, except uploads which use `multipart/form-data`
 - Errors: `422` with `{ message, errors: { field: [string] } }`, `401` unauthenticated, `403` role/policy denied, `404` not found, `413` file too large
+- Some `403`s carry a stable machine-readable `code` alongside `message`, for clients that need to react rather than just display it: `email_unverified` (§06) and `last_admin` (§07)
 
 Roles: `speaker`, `reviewer`, `admin`.
 
@@ -31,6 +33,8 @@ Roles: `speaker`, `reviewer`, `admin`.
 | `role` | enum | `speaker` \| `reviewer` \| `admin` |
 | `initials` | string | derived, 2 chars — used by the avatar component |
 | `created_at` | ISO 8601 | |
+| `email_verified_at` | ISO 8601\|null | `null` until `POST /api/email/verify` or `POST /api/invites/accept` succeeds |
+| `is_verified` | bool | `email_verified_at !== null`, denormalised so clients never re-derive it from the timestamp |
 
 ### `Tag`
 | Field | Type | Notes |
@@ -79,9 +83,24 @@ Roles: `speaker`, `reviewer`, `admin`.
 ## 01 · Sign in & register
 
 ### `POST /api/register`
-Body: `name` (required, max 80), `email` (required, email, unique), `password` (required, min 8, confirmed), `password_confirmation`, `role` (required, in `speaker,reviewer,admin`).
+Body: `name` (required, max 80), `email` (required, email, unique), `password` (required, min 8, confirmed), `password_confirmation`, `role` (required, in `speaker,reviewer` — **not** `admin`; see §07).
 
-Returns `201` → `{ token, user: User }`.
+Returns `201` → `{ token, user: User }`. The user is unverified (`is_verified: false`);
+registering also mails a 6-digit verification code — see §06.
+
+### `POST /api/invites/accept`
+No auth — this is how an admin-created account (§07) is claimed, before the invitee has any credential.
+
+Body: `email` (required), `code` (required, string — the 12-character invite code from the invitation email), `password` (required, min 8, confirmed).
+
+Returns `201` → `{ token, user: User }`, same shape as login. Also verifies the user's
+email and sets their password in one step. `422` on a wrong code, an expired/consumed
+invite, or an unknown email — **all three produce the exact same response body**,
+deliberately: `{"message": "That invitation is not valid or has expired.", "errors": {"code": [...]}}`.
+Distinguishing them would let a caller enumerate which email addresses exist and which
+invitations are still outstanding; the comparison is constant-time for the same reason,
+so an unknown address can't be told apart from a wrong code by response time either.
+Rate-limited to 6/min per IP.
 
 ### `POST /api/login`
 Body: `email` (required), `password` (required), `remember` (bool, optional).
@@ -206,7 +225,78 @@ Role: `admin`. `{ total, pending, approved, rejected, ready_to_decide }` for the
 
 ---
 
-## 06 · Live updates
+## 06 · Email verification
+
+### `POST /api/email/verify`
+Auth: any authenticated user (verified or not — this is one of the two routes an
+unverified caller must still be able to reach; see the gating note below).
+
+Body: `code` (required, string — the 6-digit code mailed on registration or by resend, 15-minute expiry, 5-attempt cap per code).
+
+Returns `200` → the caller's own `User`, `is_verified: true`. Calling this on an
+already-verified account also returns `200`, unchanged, and consumes nothing — a
+client retrying after a dropped response isn't punished for it. `422` on a wrong,
+expired, or attempt-exhausted code — `{"code": ["That code is not valid or has expired."]}`.
+Rate-limited to 6/min per user.
+
+### `POST /api/email/resend`
+Auth: any authenticated user. No body.
+
+Issues a fresh code — replacing any unconsumed one for that user, so reissuing can
+never leave two codes valid at once — and mails it. Returns `204`, even for an
+already-verified user (who gets no new mail; the action is a silent no-op for them).
+Rate-limited to 3 per 10 minutes per user.
+
+### Write gating
+**An unverified user may sign in and read everything their role allows, but any
+write is refused.** Every mutating route in §03, §04 and §05
+(`POST/PATCH/DELETE /api/proposals*`, `POST/PATCH/DELETE /api/reviews/{id}`,
+`PATCH /api/proposals/{id}/status`) plus the two admin-write routes in §07 return
+`403` with `{"code": "email_unverified"}` for an unverified caller — distinct from a
+plain policy-denial `403` so the client can prompt for the verification code instead
+of showing a generic permission error. `POST /api/email/verify` and
+`POST /api/email/resend` themselves are deliberately exempt — they're the only way
+out of "unverified", so gating them would make verification impossible.
+
+**Every code this API mails — verification here and invitations in §07 — is caught
+by Mailpit at `http://localhost:8025`, never a real inbox.** See the root
+[`README.md`](../README.md).
+
+## 07 · Admin user management & invitations
+
+### `GET /api/admin/users`
+Role: `admin`. Returns a paginated envelope of `User` (same `data`/`meta` shape as
+`GET /api/proposals`, no `counts`). This is the only endpoint that lists every user's
+email address, which is why it's admin-only.
+
+### `POST /api/admin/users`
+Role: `admin`. This — not self-registration — is how every admin except the seeded
+`alex@example.com` comes to exist.
+
+Body: `name` (required, max 80), `email` (required, email, unique), `role` (required,
+in `speaker,reviewer,admin`) — **no `password` field**. The account is created with a
+random, unusable password nobody (not even the creating admin) ever sees.
+
+Returns `201` → `User`, unverified. Mails a 12-character invitation code (see
+`POST /api/invites/accept`, §01) valid for 48 hours and capped at 5 attempts.
+
+### `PATCH /api/admin/users/{user}/role`
+Role: `admin`. Body: `role` (required, in `speaker,reviewer,admin`).
+
+Returns `200` → the updated `User`. Two refusals, both `403`:
+- **Self-demotion:** an admin can never change their *own* role, full stop — plain
+  policy `403`, no `code`. Otherwise the last admin could lock every admin function
+  out with no recovery short of the database.
+- **Last admin:** any change — targeting someone else, by any admin — that would
+  leave the system with zero administrators is refused with `{"code": "last_admin"}`.
+  This holds even under two different admins concurrently demoting two different
+  targets; the check is against the whole admin set, not just the one row being
+  written.
+
+Role changes take effect on the caller's *next* request — roles are checked live, so
+no token revocation is needed.
+
+## 08 · Live updates
 
 ### `GET /api/notifications`
 Query: `unread_only` (bool), `per_page`. Returns paginated:

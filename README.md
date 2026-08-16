@@ -117,9 +117,43 @@ and reviewed by hand, not enforced by a test.
   one at a time, per-review scores are recoverable by differencing successive averages
   (verified live: `[4, 5, 3, 1]` recovered exactly from observed averages
   `4 → 4.5 → 4 → 3.3`), so the guarantee is reviewer anonymity, not score secrecy.
-- **Anyone can register as an administrator.** This is a deliberate demo affordance so
-  a reviewer can reach every role without seeded credentials. In production, admin
-  creation would be by invitation or console command only.
+- **No self-registered administrators.** `POST /api/register` refuses `role: admin`
+  with `422` — it only ever hands out `speaker` or `reviewer`. The seeded
+  `alex@example.com` account (above) is the only admin that wasn't invited; it exists
+  purely so a reviewer of this submission can still reach the admin role without
+  waiting on an invitation email. Every further admin is created by an existing admin
+  and invited by mail — see *Email verification & admin-managed accounts* below.
+
+## Email verification & admin-managed accounts
+
+Registering mails a 6-digit code, valid for 15 minutes and capped at 5 attempts.
+Confirm it with `POST /api/email/verify`; if it expires or never arrives, get a new
+one with `POST /api/email/resend` — reissuing replaces any unconsumed code rather
+than accumulating live ones. **An unverified user may sign in and read everything
+their role allows, but any write is refused** with `403` and
+`{"code": "email_unverified"}` — a stable marker so the client can prompt for the
+code instead of showing a generic permission error. Verifying an already-verified
+account is a no-op `200`, not an error, so a client retrying after a dropped
+response is never punished for it.
+
+**Every code this app sends — verification and invitation alike — lands in Mailpit
+at <http://localhost:8025>, never in a real inbox.** That's the fastest way to
+unblock yourself while running this project locally: no code this API mails ever
+leaves the machine.
+
+Administrators are never self-registered (see *Notable decisions* above). Instead,
+an existing admin creates the account with `POST /api/admin/users` — name, email,
+role, **no password field**; the user is created with a random, unusable password
+nobody ever sees. That mails a 12-character invitation code, valid for 48 hours, and
+the invitee calls `POST /api/invites/accept` with their chosen password to claim the
+account — which also verifies their email and returns a token, the same shape as
+`POST /api/login`.
+
+Two guardrails keep the last admin from locking everyone out: **an admin can never
+change their own role**, and the system **refuses any role change that would leave
+zero administrators**, no matter who initiates it or how many admins act
+concurrently. Between them, nobody — including an admin acting on themselves — can
+ever demote the system down to zero admins with no recovery short of the database.
 
 ## Tests
 
@@ -147,6 +181,18 @@ removal, and the two admin-only read endpoints:
 | `DELETE /api/reviews/{id}` | review author | `204` |
 | `GET /api/proposals/{id}/history` | `admin` | `200` |
 | `GET /api/stats` | `admin` | `200` |
+
+This tier added six more — email verification/resend and admin-managed accounts,
+detailed in *Email verification & admin-managed accounts* above:
+
+| Endpoint | Role | Status |
+|---|---|---|
+| `POST /api/email/verify` | any authenticated user | `200` |
+| `POST /api/email/resend` | any authenticated user | `204` |
+| `GET /api/admin/users` | `admin` | `200` |
+| `POST /api/admin/users` | `admin` | `201` |
+| `PATCH /api/admin/users/{user}/role` | `admin` | `200` |
+| `POST /api/invites/accept` | none — public | `201` |
 
 The 404-enumeration guard covers exactly six proposal-scoped routes: `PATCH /api/proposals/{id}`,
 `DELETE /api/proposals/{id}`, `DELETE /api/proposals/{id}/attachment`,
