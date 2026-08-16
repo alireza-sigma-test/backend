@@ -3,6 +3,9 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\ClaudeProposalSummarizer;
+use App\Services\Contracts\ProposalSummarizer;
+use App\Services\NullProposalSummarizer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -16,7 +19,26 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        /*
+         * This binding is what makes the whole no-key story work.
+         *
+         * With no ANTHROPIC_API_KEY the application does not get a summarizer
+         * that fails — it gets one that reports itself unavailable and never
+         * touches the network. Everything downstream is written against the
+         * interface and needs no key check of its own: the job asks
+         * isConfigured() and records `unavailable`, the UI renders "AI summary
+         * unavailable", and `make up` on a clean clone is a working app with
+         * one feature switched off rather than a broken one.
+         *
+         * Resolved in register(), so the choice is made once at boot from
+         * config rather than per call.
+         */
+        $this->app->bind(
+            ProposalSummarizer::class,
+            fn () => filled(config('ai.providers.anthropic.key'))
+                ? new ClaudeProposalSummarizer
+                : new NullProposalSummarizer,
+        );
     }
 
     /**

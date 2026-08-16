@@ -27,6 +27,20 @@ arch('controllers never run queries')
     ->expect('App\Http\Controllers')
     ->not->toUse(['Illuminate\Support\Facades\DB', 'Illuminate\Database\Eloquent\Builder']);
 
+// `App\Repositories\Contracts` was already outside this rule by construction —
+// only the Eloquent and Filters namespaces are listed. `App\Services` was
+// listed wholesale because Services had no sub-namespace until
+// `App\Services\Contracts` arrived, and an interface cannot be final. Ignoring
+// it rather than moving the interface elsewhere keeps contracts beside the
+// implementations they describe, which is where the repository ones sit too.
 arch('services and repositories are final')
     ->expect(['App\Services', 'App\Repositories\Eloquent', 'App\Repositories\Filters'])
-    ->toBeFinal();
+    ->toBeFinal()
+    ->ignoring('App\Services\Contracts');
+
+// The coverage the exclusion above gives up, restated as the stronger claim:
+// nothing but interfaces belongs in a contracts namespace. A concrete class
+// hiding there would slip past both rules otherwise.
+arch('contracts namespaces hold only interfaces')
+    ->expect(['App\Services\Contracts', 'App\Repositories\Contracts'])
+    ->toBeInterfaces();
