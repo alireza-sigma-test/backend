@@ -53,9 +53,16 @@ abstract class ProposalActivity extends Notification
         ];
     }
 
-    /** `"Title" — Actor Name`, the body format API.md §06 gives as its example. */
+    /**
+     * `“Title” — Actor Name`, the body format API.md §06 gives as its example.
+     *
+     * Typographic quotes, not the straight ones API.md happens to escape into
+     * its own markdown: this string is rendered as prose beside the app's own
+     * copy, which uses curly quotes and apostrophes throughout (and so does
+     * the screen 06 mockup this panel is built from).
+     */
     protected function quoted(): string
     {
-        return sprintf('"%s" — %s', $this->proposal->title, $this->actor->name);
+        return sprintf('“%s” — %s', $this->proposal->title, $this->actor->name);
     }
 }
