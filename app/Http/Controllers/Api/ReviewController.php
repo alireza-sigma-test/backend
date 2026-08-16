@@ -36,8 +36,9 @@ class ReviewController extends Controller
     {
         $this->authorize('update', $review);
 
-        $updated = $action->handle($review, $request->toData());
-        $proposal = $review->proposal()->withCount('reviews')->withAvg('reviews', 'rating')->firstOrFail();
+        // The proposal's aggregates come back from the Action, not a
+        // controller-level query — see UpdateReview::handle()'s docblock.
+        ['review' => $updated, 'proposal' => $proposal] = $action->handle($review, $request->toData());
 
         return response()->json($this->envelope($updated, $proposal));
     }
