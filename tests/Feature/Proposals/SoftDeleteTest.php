@@ -82,6 +82,26 @@ describe('soft-deleting a proposal', function () {
         $response->assertOk()->assertJsonPath('total', 2);
     });
 
+    it('does not fatal when loading a review whose proposal was deleted', function () {
+        // Given a proposal with a review
+        $maya = User::factory()->reviewer()->create();
+        $proposal = Proposal::factory()->create();
+        $review = Review::factory()->create(['proposal_id' => $proposal->id, 'user_id' => $maya->id]);
+
+        // When the proposal is deleted
+        $proposal->delete();
+
+        // Then whatever surface reads that review still responds — a clean
+        // 403 (the same status a pending-review author gets once the
+        // proposal has any other non-pending state), not a 500 from
+        // dereferencing the now-null $review->proposal.
+        $this->actingAs($maya)->patchJson("/api/reviews/{$review->id}", ['rating' => 5])
+            ->assertForbidden();
+
+        $this->actingAs($maya)->deleteJson("/api/reviews/{$review->id}")
+            ->assertForbidden();
+    });
+
     it('excludes deleted proposals from a tag proposals_count', function () {
         // Given
         $reviewer = User::factory()->reviewer()->create();
