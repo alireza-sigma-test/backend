@@ -90,4 +90,20 @@ describe('public stats', function () {
         expect($responses->take(30)->every(fn ($r) => $r->status() === 200))->toBeTrue();
         $responses->last()->assertStatus(429);
     });
+
+    it('keys that rate limit by IP, not globally', function () {
+        // Given one client that has already burned through its window
+        collect(range(1, 31))->each(fn () => $this->getJson('/api/public-stats'));
+        $this->getJson('/api/public-stats')->assertStatus(429);
+
+        // When a second client asks from a different address
+        $response = $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.2'])
+            ->getJson('/api/public-stats');
+
+        // Then it is still served. The test above cannot tell a per-IP
+        // limiter from a global one — a single shared bucket also 429s on
+        // the 31st request — and on the app's only public route that
+        // difference is one scraper locking out every visitor.
+        $response->assertOk();
+    });
 });

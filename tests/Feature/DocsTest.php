@@ -18,6 +18,7 @@ describe('generated API docs', function () {
             '/api/proposals/{proposal}',
             '/api/proposals/{proposal}/history',
             '/api/stats',
+            '/api/public-stats',
             '/api/reviews/{review}',
         ]);
 
@@ -29,6 +30,7 @@ describe('generated API docs', function () {
         expect($paths['/api/proposals/{proposal}/history'])->toHaveKeys(['get']);
         expect($paths['/api/reviews/{review}'])->toHaveKeys(['patch', 'delete']);
         expect($paths['/api/stats'])->toHaveKeys(['get']);
+        expect($paths['/api/public-stats'])->toHaveKeys(['get']);
     });
 
     it('keeps the route parameter and the Form Request rules that make this package worth using', function () {
@@ -73,6 +75,13 @@ describe('generated API docs', function () {
         // must be documented as explicitly public (`security: []`).
         expect(data_get($document, 'paths./api/register.post.security'))->toBe([]);
         expect(data_get($document, 'paths./api/login.post.security'))->toBe([]);
+
+        // Then — same for the one route where "documented as public" is
+        // itself the security-relevant fact. `GET /api/public-stats` carries
+        // no authorization at all by design, so the document must say so
+        // outright rather than leave a reader to infer it from the absence
+        // of a padlock.
+        expect(data_get($document, 'paths./api/public-stats.get.security'))->toBe([]);
 
         // Then — and a genuinely protected route must not have been swept
         // into that same public override. `/api/stats` carries no per-operation
