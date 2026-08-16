@@ -18,6 +18,11 @@ return new class extends Migration
 
     /**
      * Reverse the migrations.
+     *
+     * Not a no-op on a populated database: dropping the column makes every
+     * soft-deleted proposal visible again across the whole API, so rolling
+     * this back is a content change, not just a schema one. (`up()` is safe
+     * — MySQL 8.4 adds a trailing nullable column INSTANT.)
      */
     public function down(): void
     {

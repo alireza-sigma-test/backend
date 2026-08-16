@@ -28,7 +28,9 @@ describe('deleting a proposal', function () {
 
         // When / Then
         $this->actingAs($dana)->deleteJson("/api/proposals/{$proposal->id}")->assertForbidden();
-        $this->assertDatabaseHas('proposals', ['id' => $proposal->id]);
+        // assertNotSoftDeleted, not assertDatabaseHas: once the trait landed,
+        // the row surviving stopped meaning the proposal survived.
+        $this->assertNotSoftDeleted('proposals', ['id' => $proposal->id]);
     });
 
     it('lets an admin delete a decided proposal', function () {

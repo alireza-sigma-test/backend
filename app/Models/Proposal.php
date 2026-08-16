@@ -22,6 +22,15 @@ class Proposal extends Model implements HasMedia
      * declare cascadeOnDelete, so a hard DELETE would destroy every reviewer's
      * rating and comment and the whole audit trail as a side effect of one
      * speaker withdrawing a talk. Soft-deleting keeps that work intact.
+     *
+     * One hard-delete path remains, and it routes straight around this:
+     * `proposals.user_id` is `constrained()->cascadeOnDelete()`, so deleting
+     * a `users` row still hard-deletes that user's proposals, and the
+     * cascades above then destroy every reviewer's work on them. Not a defect
+     * — deleting users is out of scope by design, and no code path here does
+     * it — but the guarantee this trait provides is only ever as strong as
+     * "nobody deletes a user row." Anything that later does (a GDPR erasure
+     * job, an admin delete endpoint) has to solve for that first.
      */
     use HasFactory, InteractsWithMedia, SoftDeletes;
 

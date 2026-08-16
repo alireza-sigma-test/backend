@@ -95,9 +95,11 @@ final class EloquentProposalRepository implements ProposalRepository
 
     public function countCreatedInYear(int $year): int
     {
-        // whereYear() picks up Proposal's SoftDeletes global scope
-        // automatically, so a deleted proposal is excluded without any
-        // extra condition here — that's what makes the exclusion test pass.
+        // A withdrawn proposal is not part of this year's submissions, so it
+        // must never reach the public counter. Proposal's SoftDeletes global
+        // scope applies to this query like any other, so trashed rows drop
+        // out without an extra condition here — dropping the trait, or
+        // reaching for withTrashed(), would silently publish them.
         return Proposal::whereYear('created_at', $year)->count();
     }
 

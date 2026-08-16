@@ -41,6 +41,20 @@ interface ProposalRepository
     /** Pending proposals carrying at least `review.min_reviews_to_decide` reviews. */
     public function readyToDecide(): int;
 
-    /** Proposals created in the given calendar year. Feeds the public stats endpoint. */
+    /**
+     * Proposals created in the given calendar year. Feeds the public stats
+     * endpoint.
+     *
+     * Soft-deleted proposals are excluded — the endpoint is unauthenticated,
+     * so a withdrawn proposal leaking back into this count is a disclosure,
+     * not just an off-by-one.
+     *
+     * Deliberately viewer-unscoped, unlike every method above except
+     * readyToDecide(): the only caller is a route with no authenticated user
+     * to scope by, and the answer is a single aggregate over all proposals
+     * that discloses nothing about any one of them. Reusing it on a surface
+     * where a viewer DOES exist would hand that caller a count spanning
+     * proposals they cannot see.
+     */
     public function countCreatedInYear(int $year): int;
 }
