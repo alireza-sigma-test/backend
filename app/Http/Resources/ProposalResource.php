@@ -66,6 +66,21 @@ class ProposalResource extends JsonResource
                         : (new ReviewResource($review))->toArray(request());
                 })->values()
             ),
+            // Omitted entirely for anyone who may not see it — `when()`, not a
+            // null. A null `summary` would still tell the author that a
+            // summary of their proposal exists, which is most of what the
+            // policy is protecting; an absent key tells them nothing.
+            //
+            // summary_status rides the same gate. On its own it would leak the
+            // same fact ("something was generated about you") while looking
+            // like harmless metadata.
+            ...($viewer?->can('viewSummary', $this->resource)
+                ? [
+                    'summary' => $this->summary,
+                    'summary_status' => $this->summary_status?->value,
+                ]
+                : []),
+
             // Generated from the policy so the client never infers permission
             // from a role string. Rendering only — every mutating route still
             // calls Gate::authorize.
@@ -73,6 +88,10 @@ class ProposalResource extends JsonResource
                 'edit' => $viewer?->can('update', $this->resource) ?? false,
                 'review' => $viewer?->can('review', $this->resource) ?? false,
                 'change_status' => $viewer?->can('changeStatus', $this->resource) ?? false,
+                // Rendering only, same as the rest: it saves the client
+                // branching on the presence of a key to decide whether to
+                // draw the summary panel at all.
+                'view_summary' => $viewer?->can('viewSummary', $this->resource) ?? false,
             ],
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

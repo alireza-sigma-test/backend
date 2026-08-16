@@ -59,8 +59,45 @@ Roles: `speaker`, `reviewer`, `admin`.
 | `average_rating` | float\|null | 1 decimal, `null` with no reviews |
 | `reviews_count` | int | |
 | `my_review` | `Review \| null` | only for reviewers — the caller's own review |
-| `can` | object | `{ edit, review, change_status }` — policy result, drives which controls the UI renders |
+| `summary` | string\|null | **key absent unless `can.view_summary`** — see below |
+| `summary_status` | enum | `pending` \| `ready` \| `failed` \| `unavailable` — **key absent unless `can.view_summary`** |
+| `can` | object | `{ edit, review, change_status, view_summary }` — policy result, drives which controls the UI renders |
 | `created_at` / `updated_at` | ISO 8601 | |
+
+#### The AI summary and who may read it
+
+`summary` is a short, factual summary of the proposal's description **and the
+text of its attached PDF**, so a reviewer facing a 4 MB deck gets the substance
+before deciding how much time to spend. It summarizes the *proposal*, never the
+*reviews* — summarizing peer reviews would anchor a reviewer to other people's
+conclusions before forming their own, which corrupts the process this
+application exists to run.
+
+**Visible to verified reviewers and admins, and never to the proposal's own
+author** — including a reviewer reading their own submission, where the author
+rule beats the staff rule. It is a reading aid for the people evaluating the
+proposal; showing it to the author invites them to write for the summarizer
+instead of for the reviewer.
+
+Both keys are **omitted entirely** rather than sent as `null`, on the list
+endpoint as well as the detail one. A null `summary` would still tell the author
+that a summary of their proposal exists, which is most of what the rule
+protects. Clients should branch on `can.view_summary`, not on key presence.
+
+`summary_status` distinguishes four states, and the last two are not the same
+thing:
+
+| Status | Meaning |
+|---|---|
+| `pending` | queued; the job has not run yet |
+| `ready` | `summary` holds a generated summary |
+| `failed` | the job ran and gave up after its retries — worth investigating |
+| `unavailable` | no `ANTHROPIC_API_KEY` is configured — **not an error**, and the normal state of a fresh clone |
+
+Generation is a queued job, dispatched on create and on every attachment change
+(including removal), and deliberately **not** on a title or description edit —
+each run is a paid model call. One consequence worth knowing: a summary can
+describe a description that has since been edited.
 
 ### `Attachment`
 | Field | Type | Notes |

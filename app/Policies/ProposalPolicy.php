@@ -59,6 +59,24 @@ class ProposalPolicy
         return $user->hasVerifiedEmail() && $user->hasRole(UserRole::Admin->value);
     }
 
+    /**
+     * The AI summary is a reading aid for the people evaluating a proposal —
+     * verified reviewers and admins. **Never the author**, and that is the
+     * point of the ability rather than an incidental consequence: a speaker
+     * who could read the summary of their own proposal would start writing
+     * for the summarizer instead of for the reviewer.
+     *
+     * Verified, like every other ability here that grants a real capability.
+     * An unverified reviewer has cleared no gate yet, and this one is not the
+     * exception.
+     */
+    public function viewSummary(User $user, Proposal $proposal): bool
+    {
+        return $user->hasVerifiedEmail()
+            && $this->isStaff($user)
+            && ! $this->owns($user, $proposal);
+    }
+
     public function viewHistory(User $user, Proposal $proposal): bool
     {
         return $user->hasRole(UserRole::Admin->value);
