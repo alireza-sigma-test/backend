@@ -15,6 +15,10 @@ make up
 That builds the images, boots nginx / php-fpm 8.4 / MySQL 8.4 / Redis / a queue worker /
 phpMyAdmin / Mailpit, generates the app key, migrates, and seeds.
 
+**No API keys are required.** The AI summary feature reports itself unavailable
+without one and the seeder ships written summaries so it can still be seen
+working — see *AI proposal summaries* below.
+
 The **queue worker** is not optional. `QUEUE_CONNECTION` is `redis`, so queued work —
 mail, notifications, and every broadcast event — is accepted and then sits on the queue
 until a worker takes it. Without the worker there is no error to see anywhere: the HTTP
@@ -163,6 +167,69 @@ fetches its own data; the notification bell's badge comes from
 `GET /api/notifications`'s `meta.unread_count` and is only *nudged* by events, so
 it is correct with Reverb stopped. Real-time is an enhancement, and the test for
 that is to stop the container and walk the app.
+
+## AI proposal summaries
+
+A reviewer opening a proposal gets a short, factual summary of its description
+**and the text of its attached PDF**, so a 4 MB slide deck can be triaged
+before deciding how much time to spend on it.
+
+It summarizes the **proposal**, never the **reviews**. Summarizing peer reviews
+would anchor a reviewer to other people's conclusions before forming their own,
+which corrupts the process this application exists to run — and for the same
+reason **the proposal's own author never sees the summary**, including a
+reviewer reading their own submission. It is a reading aid for the people
+evaluating the work; showing it to the author invites them to write for the
+summarizer instead of for the reviewer.
+
+| Piece | Where |
+|---|---|
+| Provider | `laravel/ai` (the first-party Laravel AI SDK), Anthropic driver |
+| Prompt | `app/Ai/Agents/ProposalSummaryAgent.php` |
+| Interface | `App\Services\Contracts\ProposalSummarizer` — two implementations |
+| PDF text | `App\Services\PdfTextExtractor` (`smalot/pdfparser`, pure PHP) |
+| Job | `App\Jobs\GenerateProposalSummary` — queued, `$tries = 3` |
+| Config | `config/ai.php` |
+
+### Without an API key
+
+**`make up` on a clone with no `ANTHROPIC_API_KEY` is a fully working app.**
+That is the normal case, and the feature is built around it rather than
+treating it as degraded:
+
+- `AppServiceProvider` binds `ProposalSummarizer` to `NullProposalSummarizer`,
+  so there is no code path to the network at all — not a client that fails, but
+  no client.
+- The job records `summary_status = unavailable`, which is **not** `failed`.
+  Failed means something went wrong and is worth investigating; unavailable
+  means the feature is switched off.
+- The UI renders a plain "AI summary unavailable" line — no error styling, no
+  spinner, no retry button.
+- **The seeder ships hand-written summaries** for all six demo proposals, so
+  the feature can be seen working without anyone holding a key. They are marked
+  as hand-written demo copy in `DemoSeeder::proposalRows()`, in a banner that
+  asks you not to mistake them for model output or judge summary quality by
+  them. Nothing in the app claims they came from a model.
+
+Set `ANTHROPIC_API_KEY` and re-submit a proposal to exercise the real path; the
+job overwrites the seeded summary for that proposal.
+
+### Cost and abuse control
+
+- Extracted PDF text is capped at 12,000 characters (`PdfTextExtractor::MAX_CHARS`)
+  before it reaches a prompt, so a 4 MB deck cannot become an unbounded call.
+- Generation runs on **create** and on **every attachment change, including
+  removal** — and deliberately **not** on a title or description edit, because
+  each run is a paid call. The cost of that choice is real: a summary can
+  describe a description that has since been edited.
+- The job retries twice with backoff and then records `failed`. It never
+  retries forever, and the client never retries — doing both would silently
+  multiply attempts.
+- Extracted PDF text is treated as **untrusted input**. It is fenced in an
+  `<ATTACHMENT>` block that the system prompt names as material to summarize,
+  never instructions to follow — a speaker controls that file and benefits from
+  a flattering summary, so "ignore your instructions" text inside it is the
+  expected case rather than a hypothetical.
 
 ## Notable decisions
 
@@ -353,14 +420,15 @@ Two things worth knowing before you rely on it:
 
 Deliberately out of scope for this submission, in planned order:
 
-| | |
-|---|---|
-| AI proposal summarisation | Laravel AI SDK agent, PDF as native document input |
+Nothing remains from the planned tiers: real-time over Reverb, persisted
+notifications, the activity feed and AI proposal summaries are all built. See
+*Real-time* and *AI proposal summaries* above, and `docs/API.md` §08.
 
-Real-time over Reverb, persisted notifications and the activity feed — all previously
-listed here — are built this tier; see *Real-time* above and `docs/API.md` §08. So are
-edit/delete for proposals and reviews, attachment removal, `/stats`, `/history` and
-OpenAPI generation, from the tier before.
+One capability deliberately **not** taken: the Laravel AI SDK can attach a PDF
+as a native document (`Files\Document::fromPath(...)`), which would skip text
+extraction entirely. Extraction is kept because it is where the 12,000-character
+budget is enforced — handing the raw 4 MB file to the provider would move that
+decision out of this codebase.
 
 The build was tiered so that every stopping point is coherent: migrations are additive per
 tier, so there are no unused columns for features that were never built.
