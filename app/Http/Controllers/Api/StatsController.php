@@ -5,6 +5,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Proposal;
 use App\Repositories\Contracts\ProposalRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,10 @@ class StatsController extends Controller
     {
         // Stats aggregate across every author, so a speaker seeing it would
         // learn the size and disposition of the whole queue — admin only.
-        abort_unless($request->user()->hasRole('admin'), 403);
+        // Routed through ProposalPolicy::viewStats, like every other
+        // per-record and per-role decision in the app (README.md: "Policies
+        // are the single source of per-record authorization").
+        $this->authorize('viewStats', Proposal::class);
 
         $counts = $repo->counts($request->user());
 

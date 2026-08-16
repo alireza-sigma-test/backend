@@ -56,6 +56,12 @@ class ProposalPolicy
         return $user->hasRole(UserRole::Admin->value);
     }
 
+    /** Stats aggregate across every author's proposals — admin only, same as viewHistory/changeStatus. */
+    public function viewStats(User $user): bool
+    {
+        return $user->hasRole(UserRole::Admin->value);
+    }
+
     private function owns(User $user, Proposal $proposal): bool
     {
         return $user->id === $proposal->user_id;
