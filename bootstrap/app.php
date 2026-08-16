@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\LastAdminException;
 use App\Http\Middleware\EnsureEmailIsVerified;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -75,4 +76,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return response()->json(['message' => 'Not Found.'], 404);
         });
+
+        // Same status UserPolicy::updateRole already returns for
+        // self-demotion — this is the same rule, just enforced at the level
+        // of the whole admin set instead of a single row. See
+        // ChangeUserRole and LastAdminException for why.
+        $exceptions->render(fn (LastAdminException $e) => response()->json([
+            'message' => $e->getMessage(),
+            'code' => 'last_admin',
+        ], 403));
     })->create();
