@@ -1,7 +1,5 @@
 <?php
 
-// app/Actions/Auth/ResendVerificationCode.php
-
 namespace App\Actions\Auth;
 
 use App\Enums\CodePurpose;

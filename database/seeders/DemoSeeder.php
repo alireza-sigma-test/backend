@@ -1,7 +1,5 @@
 <?php
 
-// database/seeders/DemoSeeder.php
-
 namespace Database\Seeders;
 
 use App\Enums\ProposalStatus;
@@ -16,22 +14,9 @@ use Illuminate\Database\Seeder;
 class DemoSeeder extends Seeder
 {
     /*
-     * ⚠️ EVERY `summary` BELOW IS HAND-WRITTEN DEMO COPY. ⚠️
-     *
-     * Not one of them came out of a model. They exist so the feature can
-     * be seen working by a grader who holds no ANTHROPIC_API_KEY — which
-     * is the normal case — and they are marked `ready` because that is the
-     * state they are demonstrating.
-     *
-     * Do not read them as evidence that the AI path ran, do not use them
-     * to judge summary quality, and do not copy their wording into a
-     * prompt eval. If you want real output, set a key and re-submit a
-     * proposal; the job will overwrite one of these.
-     *
-     * They are written in the register the real prompt asks for — what the
-     * talk covers, who it is for, what is concrete versus vague, and no
-     * evaluation — so the UI is exercised against something the shape of
-     * the real thing rather than lorem ipsum.
+     * Every `summary` below is hand-written demo copy, not model output — it exists so
+     * the feature can be seen working without an API key. Do not read it as evidence
+     * the AI path ran, and do not use it to judge summary quality.
      */
     /** @return array<int, array{0:string,1:string,2:ProposalStatus,3:array<int,string>,4:string}> */
     public static function proposalRows(): array
@@ -54,10 +39,8 @@ class DemoSeeder extends Seeder
 
     public function run(): void
     {
-        // `make up` runs `migrate --force --seed`, and Laravel calls db:seed
-        // unconditionally — it does not check whether migrations actually ran.
-        // Without this guard a second `make up` against an existing volume dies
-        // on the unique index over users.email.
+        // `make up` calls db:seed unconditionally, so without this guard a second run
+        // against an existing volume dies on the unique index over users.email.
         if (User::query()->exists()) {
             return;
         }
@@ -98,8 +81,7 @@ class DemoSeeder extends Seeder
                 'status' => $status,
             ]);
 
-            // forceFill: the summary columns are not fillable, precisely so a
-            // request can never write them. The seeder is not a request.
+            // forceFill: the summary columns are deliberately not fillable.
             $proposal->forceFill([
                 'summary' => $summary,
                 'summary_status' => SummaryStatus::Ready,
@@ -112,8 +94,7 @@ class DemoSeeder extends Seeder
         // The detail screen shows this proposal with three reviews averaging 4.0.
         $flagship = Proposal::where('title', 'Observability at scale without the bill')->firstOrFail();
 
-        // Distinct comments per reviewer: screen 04 renders all three together,
-        // and three identical paragraphs read as placeholder data.
+        // Distinct per reviewer: screen 04 renders all three together.
         $reviewRows = [
             ['Jonas Adeyemi', 4, 'Strong and specific. The cost breakdown is the part I would put on the main stage; the opening could be tighter.'],
             ['Sofia Lindqvist', 5, 'Concrete, numbers-first, and the spreadsheet giveaway makes it actionable. Main stage.'],
@@ -129,20 +110,14 @@ class DemoSeeder extends Seeder
             ]);
         }
 
-        // Without this, AttachmentStore, the private-disk signed URL and the
-        // whole attachment feature never appear to anyone who just runs the
-        // app — the seeded data has no way to exercise them. Content must
-        // start with the real %PDF signature: Media Library sniffs actual
-        // bytes, not the filename, so anything else is rejected by the
-        // collection's acceptsMimeTypes(['application/pdf']).
+        // Without this the attachment feature is unexercised by seeded data. The %PDF
+        // signature is required: Media Library sniffs bytes, not the filename.
         $flagship->addMediaFromString("%PDF-1.4\n%demo seed attachment\n".str_repeat('a', 200))
             ->usingFileName('observability-at-scale-slides.pdf')
             ->toMediaCollection(Proposal::ATTACHMENT_COLLECTION);
 
-        // REVIEW_MIN_REVIEWS_TO_DECIDE defaults to 2, yet every decided
-        // proposal here had zero reviews — data the app's own workflow could
-        // never produce. Give one approved proposal the reviews that would
-        // have supported its decision, then record the decision itself below.
+        // A decided proposal with zero reviews is data the app's own workflow could
+        // never produce, so give this one the reviews that would have supported it.
         $approved = Proposal::where('title', 'Designing for slow networks')->firstOrFail();
 
         $approvedReviewRows = [
@@ -159,10 +134,8 @@ class DemoSeeder extends Seeder
             ]);
         }
 
-        // The audit trail (/history, once built) is otherwise empty even
-        // though two proposals already carry a decision — these are the rows
-        // ChangeProposalStatus would have written for that approval and this
-        // rejection.
+        // The rows ChangeProposalStatus would have written, so /history is not empty
+        // for the two proposals that already carry a decision.
         $rejected = Proposal::where('title', 'Why we left microservices')->firstOrFail();
 
         ProposalStatusChange::create([

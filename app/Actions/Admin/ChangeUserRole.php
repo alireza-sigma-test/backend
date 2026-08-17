@@ -1,7 +1,5 @@
 <?php
 
-// app/Actions/Admin/ChangeUserRole.php
-
 namespace App\Actions\Admin;
 
 use App\Enums\UserRole;
@@ -15,35 +13,16 @@ final class ChangeUserRole
     public function handle(User $target, UserRole $role): User
     {
         return DB::transaction(function () use ($target, $role): User {
-            // Every role change locks this one row — the admin role itself,
-            // always the same row regardless of who is involved — before
-            // reading or writing anything else. The invariant being
-            // defended ("at least one admin remains") is a property of the
-            // whole admin set, not of $target alone: two concurrent admins
-            // each demoting a *different* admin would otherwise each read
-            // "the other one is still admin" and both proceed, landing on
-            // zero. UserPolicy::updateRole cannot express this — a policy
-            // returns a boolean and has nowhere to hold a lock across the
-            // read-then-write gap — so it lives here, in the transaction
-            // that actually performs the write.
-            //
-            // Locking one fixed sentinel row, rather than the varying set
-            // of current admins, also rules out a deadlock: two concurrent
-            // callers who first wrote to two *different* admin rows before
-            // locking the rest of the set could each end up waiting on a
-            // row the other already holds. Every caller here contends for
-            // the same single row, in the same order, so the second caller
-            // simply waits — and once unblocked, re-reads the admin set
-            // fresh, reflecting whatever the first caller already
-            // committed, rather than the snapshot that was true when it
-            // started waiting.
+            // "At least one admin remains" is a property of the whole admin set, not
+            // of $target, so a policy cannot express it. Locking one fixed sentinel
+            // row serialises every role change: two admins each demoting a different
+            // admin would otherwise both read "the other one is still admin" and land
+            // on zero. A fixed row rather than the varying admin set also rules out
+            // deadlock — every caller contends for the same row, in the same order.
             Role::where('name', UserRole::Admin->value)->lockForUpdate()->firstOrFail();
 
-            // Not User::role() — User defines its own instance method of that
-            // exact name (the single role this user holds, for UserResource),
-            // which shadows Spatie's scopeRole and turns a static
-            // User::role(...) call into a hard "cannot be called statically"
-            // error. Querying the roles relation directly sidesteps the clash.
+            // Not User::role() — User's own instance method of that name shadows
+            // Spatie's scopeRole, making the static call a fatal.
             $adminIds = User::whereHas('roles', fn ($q) => $q->where('name', UserRole::Admin->value))->pluck('id');
 
             $wouldZeroOutAdmins = $role !== UserRole::Admin
@@ -52,10 +31,8 @@ final class ChangeUserRole
 
             throw_if($wouldZeroOutAdmins, LastAdminException::class);
 
-            // syncRoles, not assignRole — assignRole adds a role without
-            // removing the old one, leaving the user holding two, and
-            // UserResource::role() derives a single value from the pivot,
-            // so the result would be silently arbitrary.
+            // syncRoles, not assignRole: assignRole would leave the user holding two
+            // roles, and UserResource::role() would then pick one arbitrarily.
             $target->syncRoles([$role->value]);
 
             return $target->fresh()->load('roles');

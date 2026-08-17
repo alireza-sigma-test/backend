@@ -1,20 +1,14 @@
 <?php
 
-// app/Repositories/Contracts/NotificationRepository.php
-
 namespace App\Repositories\Contracts;
 
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
- * Read surface for the notifications table. Queries only — writes go through
- * Actions using Eloquent directly, which keeps this interface honest.
- *
- * Every method takes the owner and scopes to them. There is no unscoped read
- * here on purpose: a notification is addressed to exactly one person, and an
- * endpoint that could return someone else's is the only real defect this
- * feature can have.
+ * Read surface for the notifications table. Queries only — writes go through Actions.
+ * Every method takes the owner and scopes to them; there is deliberately no unscoped
+ * read, because returning someone else's notification is this feature's one real defect.
  */
 interface NotificationRepository
 {

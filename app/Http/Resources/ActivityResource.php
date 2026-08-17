@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Resources/ActivityResource.php
-
 namespace App\Http\Resources;
 
 use App\Support\ActivityPayload;
@@ -9,10 +7,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * One feed row, in the same shape app/Events broadcasts live — see
- * ActivityPayload, which both sides call. `id` is added on top: the payload
- * itself has none, because a broadcast event is not addressable, while a feed
- * row needs a stable key for the client's list.
+ * One feed row, in the same shape app/Events broadcasts live via ActivityPayload.
+ * `id` is added on top: a broadcast event is not addressable, but a list row needs a
+ * stable key.
  */
 class ActivityResource extends JsonResource
 {
@@ -20,9 +17,8 @@ class ActivityResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            // "review.created:7" — the source table's own id, namespaced by
-            // type. Unique across the three arms of the union, which a bare
-            // row number would not be.
+            // "review.created:7" — namespaced by type, so it is unique across the
+            // three arms of the union, which a bare row id would not be.
             'id' => $this->resource->id,
             ...ActivityPayload::make(
                 $this->resource->type,

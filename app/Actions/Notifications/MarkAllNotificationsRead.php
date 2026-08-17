@@ -1,7 +1,5 @@
 <?php
 
-// app/Actions/Notifications/MarkAllNotificationsRead.php
-
 namespace App\Actions\Notifications;
 
 use App\Models\User;

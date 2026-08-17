@@ -1,7 +1,5 @@
 <?php
 
-// tests/Feature/Summaries/GenerateProposalSummaryTest.php
-
 use App\Enums\SummaryStatus;
 use App\Jobs\GenerateProposalSummary;
 use App\Models\Proposal;
@@ -39,17 +37,14 @@ describe('the summary job', function () {
     };
 
     it('stores a summary and marks it ready', function () use ($summarizerReturning) {
-        // Given
         $summarizerReturning('A talk about cardinality control.');
         $proposal = Proposal::factory()->create();
 
-        // When
         (new GenerateProposalSummary($proposal))->handle(
             app(ProposalSummarizer::class),
             app(PdfTextExtractor::class),
         );
 
-        // Then
         $fresh = $proposal->fresh();
         expect($fresh->summary)->toBe('A talk about cardinality control.')
             ->and($fresh->summary_status)->toBe(SummaryStatus::Ready)
@@ -57,19 +52,17 @@ describe('the summary job', function () {
     });
 
     it('marks unavailable when no key is configured, not failed', function () {
-        // Given — THE distinction this feature turns on. A grader running
+        // THE distinction this feature turns on. A grader running
         // `make up` with no key must see a switched-off feature, not a broken
         // one, and nothing downstream can tell the two apart if this is wrong.
         app()->instance(ProposalSummarizer::class, new NullProposalSummarizer);
         $proposal = Proposal::factory()->create();
 
-        // When
         (new GenerateProposalSummary($proposal))->handle(
             app(ProposalSummarizer::class),
             app(PdfTextExtractor::class),
         );
 
-        // Then
         $fresh = $proposal->fresh();
         expect($fresh->summary_status)->toBe(SummaryStatus::Unavailable)
             ->and($fresh->summary_status)->not->toBe(SummaryStatus::Failed)
@@ -77,13 +70,12 @@ describe('the summary job', function () {
     });
 
     it('throws when the summarizer gives up, so the job can retry', function () use ($summarizerReturning) {
-        // Given — the summarizer never throws; it returns null for provider
+        // The summarizer never throws; it returns null for provider
         // errors and timeouts alike. Something has to convert that into a
         // retry, and this is it.
         $summarizerReturning(null);
         $proposal = Proposal::factory()->create();
 
-        // When / Then
         expect(fn () => (new GenerateProposalSummary($proposal))->handle(
             app(ProposalSummarizer::class),
             app(PdfTextExtractor::class),
@@ -91,21 +83,19 @@ describe('the summary job', function () {
     });
 
     it('marks failed after exhausting retries', function () {
-        // Given — failed() is what the queue calls once $tries is spent.
         $proposal = Proposal::factory()->create();
         $proposal->forceFill(['summary_status' => SummaryStatus::Pending])->save();
 
-        // When
         (new GenerateProposalSummary($proposal))->failed(new RuntimeException('gave up'));
 
-        // Then — not left on `pending`. A row still claiming to be "being
+        // Not left on `pending`. A row still claiming to be "being
         // summarized" a week later is worse than one that admits it failed,
         // because nobody investigates a spinner.
         expect($proposal->fresh()->summary_status)->toBe(SummaryStatus::Failed);
     });
 
     it('retries twice and no more', function () {
-        // Given / When / Then — pinned, because the cost of getting this
+        // Pinned, because the cost of getting this
         // wrong is paid per attempt to a metered API.
         $job = new GenerateProposalSummary(Proposal::factory()->create());
 
@@ -117,17 +107,14 @@ describe('the summary job', function () {
     describe('dispatching', function () {
 
         it('is dispatched when a proposal is created, and marked pending', function () {
-            // Given
             Queue::fake();
             $dana = User::factory()->speaker()->create();
 
-            // When
             $response = $this->actingAs($dana)->postJson('/api/proposals', [
                 'title' => 'Observability at scale without the bill',
                 'description' => 'A concrete talk about cardinality control and what we cut.',
             ]);
 
-            // Then
             $response->assertCreated();
             Queue::assertPushed(GenerateProposalSummary::class);
 
@@ -138,23 +125,20 @@ describe('the summary job', function () {
         });
 
         it('is dispatched when the attachment changes', function () {
-            // Given
             Queue::fake();
             $dana = User::factory()->speaker()->create();
             $proposal = Proposal::factory()->create(['user_id' => $dana->id, 'status' => 'pending']);
 
-            // When
             $this->actingAs($dana)->post("/api/proposals/{$proposal->id}", [
                 '_method' => 'PATCH',
                 'attachment' => fakePdf('deck.pdf'),
             ])->assertOk();
 
-            // Then
             Queue::assertPushed(GenerateProposalSummary::class);
         });
 
         it('is dispatched when the attachment is removed', function () {
-            // Given — the summary would otherwise go on describing slides
+            // The summary would otherwise go on describing slides
             // that are no longer attached to anything.
             $dana = User::factory()->speaker()->create();
             $proposal = Proposal::factory()->create(['user_id' => $dana->id, 'status' => 'pending']);
@@ -165,28 +149,24 @@ describe('the summary job', function () {
 
             Queue::fake();
 
-            // When
             $this->actingAs($dana)
                 ->deleteJson("/api/proposals/{$proposal->id}/attachment")
                 ->assertNoContent();
 
-            // Then
             Queue::assertPushed(GenerateProposalSummary::class);
         });
 
         it('does not dispatch on an unrelated title edit', function () {
-            // Given — cost control. Each run is a paid model call, and
+            // Cost control. Each run is a paid model call, and
             // re-summarizing on every save would bill for every typo fix.
             Queue::fake();
             $dana = User::factory()->speaker()->create();
             $proposal = Proposal::factory()->create(['user_id' => $dana->id, 'status' => 'pending']);
 
-            // When
             $this->actingAs($dana)->patchJson("/api/proposals/{$proposal->id}", [
                 'title' => 'A slightly better title',
             ])->assertOk();
 
-            // Then
             Queue::assertNotPushed(GenerateProposalSummary::class);
         });
     });

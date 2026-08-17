@@ -1,20 +1,12 @@
 <?php
 
-// app/Data/UpdateReviewData.php
-
 namespace App\Data;
 
 /**
- * $rating: null means "absent from the request" — leave the rating alone.
- *
- * $comment cannot use that same convention on its own: once cleared and
- * absent both need to read as null, a plain nullable string can no longer
- * tell them apart. $commentProvided is the disambiguator: false means the
- * comment key was absent from the request and $comment must be ignored;
- * true means the client sent it — as text, an explicit null, or "" — and
- * $comment already holds the value to store (an explicit null or ""
- * collapses to null here too, matching how the create path treats a blank
- * comment).
+ * A null $rating means "absent from the request". $comment cannot use that
+ * convention, because cleared and absent would both read as null —
+ * $commentProvided is the disambiguator, and when true $comment already holds
+ * the value to store.
  */
 final readonly class UpdateReviewData
 {

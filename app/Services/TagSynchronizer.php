@@ -1,7 +1,5 @@
 <?php
 
-// app/Services/TagSynchronizer.php
-
 namespace App\Services;
 
 use App\Models\Proposal;
@@ -11,16 +9,10 @@ use Illuminate\Support\Str;
 final class TagSynchronizer
 {
     /**
-     * Resolve a mixed list of tag ids and tag names to tag ids and sync them.
-     *
-     * Creation is idempotent by slug across sequential requests: "testing",
-     * "Testing" and "TESTING" all resolve to one row.
-     *
-     * This is NOT a concurrency guarantee. `firstOrCreate` is select-then-insert,
-     * so two genuinely simultaneous first-time submissions of the same new name
-     * can both miss the SELECT and race the INSERT; the loser hits the unique
-     * index on `tags.slug` and surfaces a QueryException. That is loud rather
-     * than silently duplicating, which is the right failure mode here.
+     * Resolves a mixed list of tag ids and names, idempotent by slug across
+     * sequential requests. Not concurrency-safe: firstOrCreate is
+     * select-then-insert, so a simultaneous first use of the same new name loses
+     * on the unique index and surfaces a QueryException rather than duplicating.
      *
      * @param  array<int, int|string>  $tags
      */
@@ -35,19 +27,13 @@ final class TagSynchronizer
                 continue;
             }
 
-            // Both columns are 40 chars and BOTH must be bounded independently.
-            // Slugging the untruncated name overflows `slug`; but bounding only
-            // the name is not enough either, because Str::slug() transliterates
-            // and some characters expand to two ASCII ones (ß→ss, æ→ae, œ→oe,
-            // ĳ→ij) — so a 40-character name can still yield an 80-character
-            // slug. Either overflow surfaces as a raw QueryException on
-            // free-text client input. Trailing dashes from cutting mid-word are
-            // trimmed so the slug stays canonical.
+            // Both 40-char columns need bounding independently: Str::slug()
+            // transliterates, and characters that expand to two ASCII ones (ß→ss,
+            // æ→ae) let a bounded name still overflow `slug`.
             $name = Str::limit(trim((string) $tag), 40, '');
             $slug = trim(Str::limit(Str::slug($name), 40, ''), '-');
 
-            // A pure-punctuation name slugs to an empty string, which would
-            // otherwise collide every such tag onto one row.
+            // A pure-punctuation name slugs to '', collapsing every such tag onto one row.
             if ($name === '' || $slug === '') {
                 continue;
             }

@@ -1,7 +1,5 @@
 <?php
 
-// app/Repositories/Eloquent/EloquentUserRepository.php
-
 namespace App\Repositories\Eloquent;
 
 use App\Enums\UserRole;
@@ -19,17 +17,14 @@ final class EloquentUserRepository implements UserRepository
 
     public function countWithRole(UserRole $role): int
     {
-        // Not User::role(...): User defines its own instance method named
-        // role() (it feeds UserResource), which shadows Spatie's scopeRole,
-        // so a static call through it is a hard "cannot be called
-        // statically" error. This exact trap already bit ChangeUserRole.
+        // Not User::role(...): the model's own role() instance method shadows Spatie's
+        // scopeRole, making the static call a fatal.
         return User::whereHas('roles', fn ($q) => $q->where('name', $role->value))->count();
     }
 
     public function withRoles(UserRole ...$roles): Collection
     {
-        // Same shadowing trap as countWithRole(): User::role(...) is a hard
-        // error because the model defines its own instance method named role().
+        // Same shadowing trap as countWithRole().
         $names = array_map(fn (UserRole $role) => $role->value, $roles);
 
         return User::whereHas('roles', fn ($q) => $q->whereIn('name', $names))->get();

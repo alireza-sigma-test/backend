@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Resources/StatusChangeResource.php
-
 namespace App\Http\Resources;
 
 use App\Models\ProposalStatusChange;

@@ -56,10 +56,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(Review::class);
     }
 
-    /**
-     * Laravel's default sends a signed link. This project verifies with a typed
-     * code, so the override keeps the two paths from ever diverging.
-     */
+    /** Overridden because this project verifies with a typed code, not a signed link. */
     public function sendEmailVerificationNotification(): void
     {
         $code = app(UserCodeService::class)->issue($this, CodePurpose::EmailVerification);

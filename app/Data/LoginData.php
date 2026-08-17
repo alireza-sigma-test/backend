@@ -1,7 +1,5 @@
 <?php
 
-// app/Data/LoginData.php
-
 namespace App\Data;
 
 final readonly class LoginData

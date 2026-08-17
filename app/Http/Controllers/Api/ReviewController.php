@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Controllers/Api/ReviewController.php
-
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Reviews\DeleteReview;
@@ -20,9 +18,8 @@ class ReviewController extends Controller
 {
     public function store(StoreReviewRequest $request, Proposal $proposal, SubmitReview $action): JsonResponse
     {
-        // The 404-for-visibility guard now lives in StoreReviewRequest::authorize(),
-        // which runs before validation — see the comment there. This authorize()
-        // call is the separate "can this viewer submit a review" check.
+        // The 404-for-visibility guard lives in StoreReviewRequest::authorize(), which
+        // runs before validation. This is the separate "may they review it" check.
         $this->authorize('review', $proposal);
 
         $review = $action->handle($request->user(), $proposal, $request->toData());
@@ -36,8 +33,7 @@ class ReviewController extends Controller
     {
         $this->authorize('update', $review);
 
-        // The proposal's aggregates come back from the Action, not a
-        // controller-level query — see UpdateReview::handle()'s docblock.
+        // Aggregates come back from the Action, not a controller-level query.
         ['review' => $updated, 'proposal' => $proposal] = $action->handle($review, $request->toData());
 
         return response()->json($this->envelope($updated, $proposal));

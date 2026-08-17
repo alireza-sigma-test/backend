@@ -1,7 +1,5 @@
 <?php
 
-// tests/Feature/Auth/LoginTest.php
-
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 
@@ -10,37 +8,30 @@ describe('login', function () {
     beforeEach(fn () => $this->seed(RoleSeeder::class));
 
     it('returns a token for valid credentials', function () {
-        // Given
         User::factory()->reviewer()->create(['email' => 'maya@example.com']);
 
-        // When
         $response = $this->postJson('/api/login', [
             'email' => 'maya@example.com', 'password' => 'password',
         ]);
 
-        // Then
         $response->assertOk()->assertJsonPath('user.role', 'reviewer');
         expect($response->json('token'))->toBeString()->not->toBeEmpty();
     });
 
     it('rejects a wrong password with 422 and no user enumeration', function () {
-        // Given
         User::factory()->speaker()->create(['email' => 'dana@example.com']);
 
-        // When
         $response = $this->postJson('/api/login', [
             'email' => 'dana@example.com', 'password' => 'wrong-password',
         ]);
 
-        // Then
         $response->assertStatus(422)->assertJsonValidationErrors('email');
     });
 
     it('returns the same error for an unknown email as for a wrong password', function () {
-        // Given — a real user, so the wrong-password branch has something to compare.
         User::factory()->speaker()->create(['email' => 'dana@example.com']);
 
-        // When — both branches captured in the same test, not two separate ones,
+        // Both branches captured in the same test, not two separate ones,
         // so a divergence between them fails a single assertion instead of two
         // individually-passing tests that never get compared to each other.
         $wrongPassword = $this->postJson('/api/login', [
@@ -50,7 +41,7 @@ describe('login', function () {
             'email' => 'nobody@example.com', 'password' => 'password',
         ]);
 
-        // Then — this is the assertion that actually exercises LoginUser::DUMMY_HASH:
+        // This is the assertion that actually exercises LoginUser::DUMMY_HASH:
         // asserting each response's status/field in isolation would stay green even
         // if the two branches returned different messages.
         $wrongPassword->assertStatus(422)->assertJsonValidationErrors('email');
@@ -59,14 +50,11 @@ describe('login', function () {
     });
 
     it('revokes the current token on logout', function () {
-        // Given
         $user = User::factory()->speaker()->create();
         $token = $user->createToken('api')->plainTextToken;
 
-        // When
         $response = $this->withToken($token)->postJson('/api/logout');
 
-        // Then
         $response->assertNoContent();
         expect($user->fresh()->tokens()->count())->toBe(0);
     });
@@ -76,10 +64,8 @@ describe('login', function () {
     });
 
     it('returns 401, not a 500 stack trace, for a browser-style unauthenticated request', function () {
-        // When — deliberately no Accept: application/json, unlike getJson()
         $response = $this->get('/api/me');
 
-        // Then
         $response->assertStatus(401);
         expect($response->getContent())->not->toContain('vendor/laravel/framework');
     });

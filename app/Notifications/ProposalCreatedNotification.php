@@ -1,7 +1,5 @@
 <?php
 
-// app/Notifications/ProposalCreatedNotification.php
-
 namespace App\Notifications;
 
 /** Sent to reviewers and admins when a speaker submits. */

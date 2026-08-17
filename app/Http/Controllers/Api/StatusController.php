@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Controllers/Api/StatusController.php
-
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Proposals\ChangeProposalStatus;
@@ -16,9 +14,8 @@ class StatusController extends Controller
 {
     public function update(ChangeStatusRequest $request, Proposal $proposal, ChangeProposalStatus $action): JsonResponse
     {
-        // The 404-for-visibility guard now lives in ChangeStatusRequest::authorize(),
-        // which runs before validation — see the comment there. This authorize()
-        // call is the separate "can this viewer change status" (admin-only) check.
+        // The 404-for-visibility guard lives in ChangeStatusRequest::authorize(), which
+        // runs before validation. This is the separate admin-only check.
         $this->authorize('changeStatus', $proposal);
 
         $admin = $request->user();
@@ -27,9 +24,8 @@ class StatusController extends Controller
         return response()->json([
             'proposal' => new ProposalResource($updated->loadCount('reviews')->loadAvg('reviews', 'rating')),
             'changed_by' => new UserResource($admin->load('roles')),
-            // The audit row's own timestamp, not a second now(). /history will
-            // read changed_at from the same column, so both endpoints must mean
-            // the same thing. Null only for a no-op, which records nothing.
+            // The audit row's own timestamp, not a second now() — /history reads
+            // changed_at from this column. Null only for a no-op, which records nothing.
             'changed_at' => $change?->created_at?->toIso8601String(),
         ]);
     }

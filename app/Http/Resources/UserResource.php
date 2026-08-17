@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Resources/UserResource.php
-
 namespace App\Http\Resources;
 
 use App\Models\User;

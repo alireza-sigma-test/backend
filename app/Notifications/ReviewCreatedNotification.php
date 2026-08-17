@@ -1,15 +1,10 @@
 <?php
 
-// app/Notifications/ReviewCreatedNotification.php
-
 namespace App\Notifications;
 
 /**
- * Sent to the proposal's author and to admins when a reviewer rates.
- *
- * The rating is deliberately absent. The author's own notification would
- * otherwise hand them a reviewer's score before the decision is made, which
- * is not what the review screen shows them either.
+ * The author and admins. The rating is deliberately absent — it would hand the author
+ * a reviewer's score before the decision, which the review screen also withholds.
  */
 final class ReviewCreatedNotification extends ProposalActivity
 {

@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Controllers/Api/Admin/UserController.php
-
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Actions\Admin\ChangeUserRole;

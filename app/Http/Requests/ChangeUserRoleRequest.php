@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Requests/ChangeUserRoleRequest.php
-
 namespace App\Http\Requests;
 
 use App\Enums\UserRole;

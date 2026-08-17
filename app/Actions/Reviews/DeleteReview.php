@@ -1,7 +1,5 @@
 <?php
 
-// app/Actions/Reviews/DeleteReview.php
-
 namespace App\Actions\Reviews;
 
 use App\Models\Review;

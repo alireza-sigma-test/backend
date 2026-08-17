@@ -1,22 +1,12 @@
 <?php
 
-// app/Services/NullProposalSummarizer.php
-
 namespace App\Services;
 
 use App\Services\Contracts\ProposalSummarizer;
 
 /**
- * The implementation a deployment with no API key gets.
- *
- * It exists so that "no key" is a binding decision made once, at boot, rather
- * than a null check scattered through the job and the summarizer. Nothing
- * downstream needs to know which implementation it holds — it asks
- * isConfigured() and records `unavailable`.
- *
- * The safety property is worth stating: with this bound, there is no code path
- * that can reach the network at all. A misconfigured deployment cannot make a
- * half-authenticated call; it simply has no client.
+ * Bound when there is no API key, making "no key" one decision at boot rather than a
+ * null check in every caller. With this bound no code path can reach the network.
  */
 final class NullProposalSummarizer implements ProposalSummarizer
 {

@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Controllers/Api/HistoryController.php
-
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;

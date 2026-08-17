@@ -1,7 +1,5 @@
 <?php
 
-// app/Repositories/Eloquent/EloquentProposalRepository.php
-
 namespace App\Repositories\Eloquent;
 
 use App\Data\ProposalFilterData;
@@ -70,14 +68,9 @@ final class EloquentProposalRepository implements ProposalRepository
 
         $buckets = [];
 
-        // Zero-fill across the configured scale rather than returning only the
-        // ratings that occur — the client renders one bar per point, and a
-        // sparse map would make it branch on missing keys.
-        //
-        // $tallied may hold ratings above the current max_rating (recorded
-        // before the scale was lowered); those are simply never read below,
-        // so they drop out of the histogram instead of being clamped into the
-        // top bucket. See the interface docblock for why.
+        // Zero-filled across the configured scale so the client never branches on
+        // missing keys. Ratings above the current max_rating are never read here, so
+        // they drop out rather than being clamped into the top bucket.
         foreach (range(1, (int) config('review.max_rating')) as $point) {
             $buckets[$point] = (int) ($tallied[$point] ?? 0);
         }
@@ -95,11 +88,8 @@ final class EloquentProposalRepository implements ProposalRepository
 
     public function countCreatedInYear(int $year): int
     {
-        // A withdrawn proposal is not part of this year's submissions, so it
-        // must never reach the public counter. Proposal's SoftDeletes global
-        // scope applies to this query like any other, so trashed rows drop
-        // out without an extra condition here — dropping the trait, or
-        // reaching for withTrashed(), would silently publish them.
+        // Trashed rows drop out via Proposal's SoftDeletes global scope. withTrashed()
+        // here would silently publish withdrawn proposals on an unauthenticated route.
         return Proposal::whereYear('created_at', $year)->count();
     }
 
@@ -115,9 +105,8 @@ final class EloquentProposalRepository implements ProposalRepository
                 'author.roles',
                 'tags',
                 'media',
-                // Constrained by the passed-in viewer, never by auth(). The
-                // resource renders this as `my_review`, so a mismatch here
-                // attributes another reviewer's rating to the caller.
+                // Constrained by the passed-in viewer, never auth(): this renders as
+                // `my_review`, so a mismatch attributes another reviewer's rating.
                 'myReview' => fn ($query) => $query
                     ->where('reviews.user_id', $viewer->id)
                     ->with('reviewer'),

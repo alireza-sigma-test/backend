@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Requests/ChangeStatusRequest.php
-
 namespace App\Http\Requests;
 
 use App\Data\StatusChangeData;

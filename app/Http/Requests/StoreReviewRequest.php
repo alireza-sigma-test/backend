@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Requests/StoreReviewRequest.php
-
 namespace App\Http\Requests;
 
 use App\Data\ReviewData;

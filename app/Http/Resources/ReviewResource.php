@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Resources/ReviewResource.php
-
 namespace App\Http\Resources;
 
 use App\Models\Review;

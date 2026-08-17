@@ -1,7 +1,5 @@
 <?php
 
-// app/Notifications/ProposalUpdatedNotification.php
-
 namespace App\Notifications;
 
 /** Sent to reviewers when a speaker edits a proposal they may be reviewing. */

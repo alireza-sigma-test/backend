@@ -3,14 +3,9 @@
 namespace App\Enums;
 
 /**
- * Where a proposal's AI summary stands.
- *
- * `Failed` and `Unavailable` are deliberately distinct, and the distinction is
- * the whole no-key story: failed means something went wrong and is worth
- * investigating, unavailable means this deployment simply has no API key
- * configured. Unavailable is the normal state for anyone running `make up`
- * from a clean clone, and it must not read as breakage anywhere — not in the
- * database, not in the API, and not on screen.
+ * `Failed` and `Unavailable` are deliberately distinct: failed is worth
+ * investigating, unavailable just means no API key. Unavailable is the normal state
+ * of a clean clone and must never read as breakage.
  */
 enum SummaryStatus: string
 {

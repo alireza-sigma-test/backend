@@ -1,7 +1,5 @@
 <?php
 
-// app/Data/RegisterData.php
-
 namespace App\Data;
 
 use App\Enums\UserRole;

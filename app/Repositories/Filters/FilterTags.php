@@ -1,7 +1,5 @@
 <?php
 
-// app/Repositories/Filters/FilterTags.php
-
 namespace App\Repositories\Filters;
 
 use Closure;

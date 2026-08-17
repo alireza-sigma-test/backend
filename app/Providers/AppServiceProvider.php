@@ -14,25 +14,10 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
-        /*
-         * This binding is what makes the whole no-key story work.
-         *
-         * With no ANTHROPIC_API_KEY the application does not get a summarizer
-         * that fails — it gets one that reports itself unavailable and never
-         * touches the network. Everything downstream is written against the
-         * interface and needs no key check of its own: the job asks
-         * isConfigured() and records `unavailable`, the UI renders "AI summary
-         * unavailable", and `make up` on a clean clone is a working app with
-         * one feature switched off rather than a broken one.
-         *
-         * Resolved in register(), so the choice is made once at boot from
-         * config rather than per call.
-         */
+        // With no API key the app gets a summarizer that reports itself
+        // unavailable, not one that fails — so nothing downstream needs a key check.
         $this->app->bind(
             ProposalSummarizer::class,
             fn () => filled(config('ai.providers.anthropic.key'))
@@ -41,9 +26,6 @@ class AppServiceProvider extends ServiceProvider
         );
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         RateLimiter::for('login', fn (Request $r) => Limit::perMinute(6)->by($r->ip()));
@@ -52,30 +34,19 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('resend-code', fn (Request $r) => Limit::perMinutes(10, 3)->by($r->user()?->id ?: $r->ip()));
         RateLimiter::for('accept-invite', fn (Request $r) => Limit::perMinute(6)->by($r->ip()));
 
-        // The only unauthenticated read surface in the application, so the only one
-        // that gets scraped. Keyed by IP because there is no user to key by.
+        // The only unauthenticated read surface, so keyed by IP — there is no user.
         RateLimiter::for('public-stats', fn (Request $r) => Limit::perMinute(30)->by($r->ip()));
 
-        // The whole admin group sat with no limiter at all — every other
-        // sensitive route in this app has a named one. Keyed by user id
-        // (every route inside is already behind auth:sanctum, so it is
-        // always present): defence in depth alongside the `admin` gate
-        // itself, not a substitute for it — the gate is what stops a
-        // non-admin from reaching the enumeration surface; this just caps
-        // how fast even an admin account can be made to probe it.
+        // Defence in depth alongside the `admin` gate: caps how fast even an
+        // admin account can be made to probe the enumeration surface.
         RateLimiter::for('admin', fn (Request $r) => Limit::perMinute(30)->by($r->user()?->id ?: $r->ip()));
 
-        // Scramble ships a `local`-only gate. This is a portfolio API whose
-        // reviewers run it in Docker with APP_ENV=local, so the default would
-        // hide the docs from exactly the audience they exist for. Opening them
-        // is a deliberate choice: every documented route still enforces
-        // Sanctum and its policy, so the document is a map, not a key.
+        // Deliberately open, overriding Scramble's `local`-only default: reviewers
+        // run this in Docker with APP_ENV=local. Documented routes still enforce
+        // Sanctum and their policies.
         Gate::define('viewApiDocs', fn (?User $user) => true);
 
-        // The bearer scheme itself, and which routes require it, are configured
-        // via `security_strategy` in config/scramble.php — not here. It inspects
-        // each route's actual `auth:sanctum` middleware, so `/api/register` and
-        // `/api/login` are correctly documented as unauthenticated instead of
-        // every route inheriting a single document-wide requirement.
+        // The bearer scheme and which routes require it come from
+        // `security_strategy` in config/scramble.php, not from here.
     }
 }

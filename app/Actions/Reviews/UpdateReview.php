@@ -1,7 +1,5 @@
 <?php
 
-// app/Actions/Reviews/UpdateReview.php
-
 namespace App\Actions\Reviews;
 
 use App\Data\UpdateReviewData;
@@ -12,13 +10,10 @@ use Illuminate\Support\Facades\DB;
 final class UpdateReview
 {
     /**
-     * @return array{review: Review, proposal: Proposal}
+     * Returns the proposal with fresh aggregates so the controller does not re-query,
+     * mirroring ChangeProposalStatus's shape.
      *
-     * The controller needs the proposal's fresh review aggregates for the
-     * response envelope; hydrating them here — rather than leaving the
-     * controller to re-query — mirrors ChangeProposalStatus's
-     * ['proposal' => …, 'change' => …] shape and keeps the query out of
-     * App\Http\Controllers, same as every other write on this branch.
+     * @return array{review: Review, proposal: Proposal}
      */
     public function handle(Review $review, UpdateReviewData $data): array
     {

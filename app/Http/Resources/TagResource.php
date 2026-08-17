@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Resources/TagResource.php
-
 namespace App\Http\Resources;
 
 use App\Models\Tag;

@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Controllers/Api/InviteController.php
-
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Auth\AcceptInvite;
@@ -18,17 +16,14 @@ class InviteController extends Controller
         $result = $action->handle($request->toData());
 
         if ($result === null) {
-            // One message for every failure cause — wrong code, unknown
-            // email, expired or already-consumed invite. Distinguishing any
-            // of them here would reopen the enumeration oracle this endpoint
-            // exists to keep shut.
+            // One message for every cause — wrong code, unknown email, expired or
+            // consumed invite. Distinguishing them reopens the enumeration oracle.
             throw ValidationException::withMessages([
                 'code' => 'That invitation is not valid or has expired.',
             ]);
         }
 
-        // Flat, not JsonResource's default `data` wrapper — same convention
-        // as AuthController::register().
+        // Flat, not JsonResource's default `data` wrapper.
         return response()->json(['token' => $result['token'], 'user' => new UserResource($result['user'])], 201);
     }
 }

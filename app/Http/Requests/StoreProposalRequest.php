@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Requests/StoreProposalRequest.php
-
 namespace App\Http\Requests;
 
 use App\Data\ProposalData;
@@ -16,13 +14,9 @@ class StoreProposalRequest extends FormRequest
             'title' => ['required', 'string', 'min:8', 'max:120'],
             'description' => ['required', 'string', 'min:40', 'max:20000'],
             'tags' => ['sometimes', 'array', 'max:10'],
-            // Ids and free-text names share this array. A plain `string` rule
-            // would reject genuine tag ids: `$tag->id` round-trips through a
-            // JSON request body as a native integer, and Laravel's `string`
-            // rule is a strict is_string() check. `max:40` still bounds
-            // length correctly for either type — it only switches to numeric
-            // comparison when a `numeric`/`integer` rule is also present on
-            // the field, which this one deliberately omits.
+            // Ids and free-text names share this array, so no `string` rule: it is a
+            // strict is_string() check and tag ids arrive as native integers. `max:40`
+            // still bounds either type, since no numeric rule accompanies it.
             'tags.*' => [
                 'required',
                 function (string $attribute, mixed $value, Closure $fail): void {
@@ -32,8 +26,8 @@ class StoreProposalRequest extends FormRequest
                 },
                 'max:40',
             ],
-            // Extension AND sniffed MIME type — an attacker renaming
-            // payload.exe to slides.pdf fails the second rule.
+            // Extension AND sniffed MIME type: payload.exe renamed to slides.pdf
+            // fails the second rule.
             'attachment' => ['sometimes', 'nullable', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:4096'],
         ];
     }

@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Resources/ProposalResource.php
-
 namespace App\Http\Resources;
 
 use App\Models\Proposal;
@@ -39,10 +37,8 @@ class ProposalResource extends JsonResource
                 ? null
                 : round((float) $this->reviews_avg_rating, 1),
             'reviews_count' => (int) ($this->reviews_count ?? 0),
-            // Explicit null, not an omitted key, whenever there is an authenticated
-            // viewer — even if myReview was never eager-loaded (e.g. the model
-            // SubmitProposal just created). A typed client can then declare
-            // `my_review: Review | null` instead of `Review | undefined`.
+            // Explicit null rather than an omitted key even when myReview was never
+            // eager-loaded, so a typed client can declare `Review | null`.
             'my_review' => $this->when(
                 $viewer !== null,
                 fn () => ($this->relationLoaded('myReview') && $this->myReview)
@@ -52,9 +48,8 @@ class ProposalResource extends JsonResource
             'reviews' => $this->when(
                 $this->relationLoaded('reviews'),
                 fn () => $this->reviews->map(function ($review) use ($viewer) {
-                    // The owning speaker sees the comment and the date, but never
-                    // the score or who wrote it. Enforced here, server-side, never
-                    // by the client hiding fields.
+                    // The owning speaker sees the comment and date, never the score or
+                    // the reviewer. Enforced server-side, not by the client.
                     $isOwningSpeaker = $viewer !== null && $viewer->id === $this->user_id;
 
                     return $isOwningSpeaker
@@ -66,14 +61,8 @@ class ProposalResource extends JsonResource
                         : (new ReviewResource($review))->toArray(request());
                 })->values()
             ),
-            // Omitted entirely for anyone who may not see it — `when()`, not a
-            // null. A null `summary` would still tell the author that a
-            // summary of their proposal exists, which is most of what the
-            // policy is protecting; an absent key tells them nothing.
-            //
-            // summary_status rides the same gate. On its own it would leak the
-            // same fact ("something was generated about you") while looking
-            // like harmless metadata.
+            // Both keys omitted, not nulled: a null would still tell the author that a
+            // summary of their proposal exists, which is what the policy protects.
             ...($viewer?->can('viewSummary', $this->resource)
                 ? [
                     'summary' => $this->summary,
@@ -81,16 +70,12 @@ class ProposalResource extends JsonResource
                 ]
                 : []),
 
-            // Generated from the policy so the client never infers permission
-            // from a role string. Rendering only — every mutating route still
-            // calls Gate::authorize.
+            // From the policy, so the client never infers permission from a role
+            // string. Rendering only — every mutating route still calls authorize.
             'can' => [
                 'edit' => $viewer?->can('update', $this->resource) ?? false,
                 'review' => $viewer?->can('review', $this->resource) ?? false,
                 'change_status' => $viewer?->can('changeStatus', $this->resource) ?? false,
-                // Rendering only, same as the rest: it saves the client
-                // branching on the presence of a key to decide whether to
-                // draw the summary panel at all.
                 'view_summary' => $viewer?->can('viewSummary', $this->resource) ?? false,
             ],
             'created_at' => $this->created_at?->toIso8601String(),

@@ -1,7 +1,5 @@
 <?php
 
-// database/factories/ReviewFactory.php
-
 namespace Database\Factories;
 
 use App\Models\Proposal;

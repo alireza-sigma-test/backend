@@ -1,7 +1,5 @@
 <?php
 
-// database/factories/UserFactory.php
-
 namespace Database\Factories;
 
 use App\Enums\UserRole;

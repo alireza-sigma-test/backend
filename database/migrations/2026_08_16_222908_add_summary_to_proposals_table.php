@@ -11,10 +11,8 @@ return new class extends Migration
         Schema::table('proposals', function (Blueprint $table) {
             $table->text('summary')->nullable()->after('description');
 
-            // A string plus a PHP enum cast, never a native MySQL ENUM —
-            // the same precedent the `status` column set. Altering a native
-            // ENUM rewrites the whole table; adding a case to the PHP enum
-            // costs nothing.
+            // String plus a PHP enum cast, like `status`: altering a native MySQL ENUM
+            // rewrites the whole table.
             $table->string('summary_status', 16)->nullable()->after('summary');
 
             $table->timestamp('summary_generated_at')->nullable()->after('summary_status');

@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Resources/NotificationResource.php
-
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
@@ -18,9 +16,8 @@ class NotificationResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            // From `data`, not from the model's own `type` column — that one
-            // holds the notification class FQCN. docs/design/API.md §06 fixes
-            // this as the event vocabulary. See the migration's comment.
+            // From `data`, not the model's `type` column, which holds the class FQCN.
+            // docs/design/API.md §06 fixes this as the event vocabulary.
             'type' => $this->data['type'] ?? null,
             'title' => $this->data['title'] ?? null,
             'body' => $this->data['body'] ?? null,

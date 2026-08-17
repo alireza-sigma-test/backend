@@ -1,7 +1,5 @@
 <?php
 
-// app/Repositories/Contracts/UserRepository.php
-
 namespace App\Repositories\Contracts;
 
 use App\Enums\UserRole;
@@ -9,10 +7,7 @@ use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
-/**
- * Read surface for User. Queries only — writes go through Actions using
- * Eloquent directly, which keeps this interface honest.
- */
+/** Read surface for User. Queries only — writes go through Actions. */
 interface UserRepository
 {
     public function paginate(): LengthAwarePaginator;
@@ -21,12 +16,8 @@ interface UserRepository
     public function countWithRole(UserRole $role): int;
 
     /**
-     * Every user holding any of the given roles.
-     *
-     * Feeds ActivityNotifier's recipient lists, which is why it returns models
-     * rather than ids — Notification::send() needs notifiables. Unbounded by
-     * design: the roles here are staff roles (reviewers, admins), and a
-     * paginated recipient list would silently notify only the first page.
+     * Models rather than ids because Notification::send() needs notifiables.
+     * Unbounded by design — a paginated recipient list would notify only page one.
      *
      * @return Collection<int, User>
      */

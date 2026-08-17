@@ -1,7 +1,5 @@
 <?php
 
-// database/factories/TagFactory.php
-
 namespace Database\Factories;
 
 use App\Models\Tag;

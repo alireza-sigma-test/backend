@@ -1,7 +1,5 @@
 <?php
 
-// tests/Feature/Realtime/ActivityTest.php
-
 use App\Models\Proposal;
 use App\Models\ProposalStatusChange;
 use App\Models\Review;
@@ -15,21 +13,17 @@ describe('activity feed', function () {
     });
 
     it('shows a speaker only their own proposals activity', function () {
-        // Given — THE test for this endpoint. "Everything the caller may see"
-        // is easy to over-read as "everything", and a speaker reading another
-        // speaker's submissions out of the feed is a data leak, not a display
-        // bug. It is also invisible from the endpoint's own response unless
-        // someone asserts it.
+        // The test for this endpoint: "everything the caller may see" is easy to
+        // over-read as "everything", and a speaker reading another's submissions out of
+        // the feed is a data leak that the response itself cannot reveal.
         $dana = User::factory()->speaker()->create();
         $rival = User::factory()->speaker()->create();
 
         $mine = Proposal::factory()->create(['user_id' => $dana->id]);
         $theirs = Proposal::factory()->create(['user_id' => $rival->id]);
 
-        // When
         $response = $this->actingAs($dana)->getJson('/api/activity');
 
-        // Then
         $response->assertOk()->assertJsonCount(1, 'data');
         expect($response->json('data.0.proposal.id'))->toBe($mine->id)
             ->and(collect($response->json('data'))->pluck('proposal.id'))
@@ -37,13 +31,11 @@ describe('activity feed', function () {
     });
 
     it('shows reviewers and admins activity across all proposals', function () {
-        // Given
         $dana = User::factory()->speaker()->create();
         $rival = User::factory()->speaker()->create();
         Proposal::factory()->create(['user_id' => $dana->id]);
         Proposal::factory()->create(['user_id' => $rival->id]);
 
-        // When / Then
         foreach ([User::factory()->reviewer()->create(), User::factory()->admin()->create()] as $staff) {
             $this->actingAs($staff)->getJson('/api/activity')
                 ->assertOk()
@@ -52,7 +44,6 @@ describe('activity feed', function () {
     });
 
     it('carries the three durable event types', function () {
-        // Given
         $dana = User::factory()->speaker()->create();
         $maya = User::factory()->reviewer()->create();
         $alex = User::factory()->admin()->create();
@@ -66,25 +57,21 @@ describe('activity feed', function () {
             'changed_by' => $alex->id,
         ]);
 
-        // When
         $response = $this->actingAs($dana)->getJson('/api/activity');
 
-        // Then
         $response->assertOk();
         expect(collect($response->json('data'))->pluck('type')->all())
             ->toEqualCanonicalizing(['proposal.created', 'review.created', 'proposal.status_changed']);
     });
 
     it('returns each row in the broadcast payload shape', function () {
-        // Given — same shape as the events in app/Events, so one client
+        // Same shape as the events in app/Events, so one client
         // component renders a live push and a fetched row identically.
         $dana = User::factory()->speaker()->create(['name' => 'Dana Levy']);
         $proposal = Proposal::factory()->create(['user_id' => $dana->id]);
 
-        // When
         $response = $this->actingAs($dana)->getJson('/api/activity');
 
-        // Then
         $response->assertOk();
         $row = $response->json('data.0');
 
@@ -100,7 +87,6 @@ describe('activity feed', function () {
     });
 
     it('names the actor who did the thing, not the proposal author', function () {
-        // Given
         $dana = User::factory()->speaker()->create(['name' => 'Dana Levy']);
         $alex = User::factory()->admin()->create(['name' => 'Alex Rivera']);
         $proposal = Proposal::factory()->create(['user_id' => $dana->id]);
@@ -112,37 +98,29 @@ describe('activity feed', function () {
             'changed_by' => $alex->id,
         ]);
 
-        // When
         $response = $this->actingAs($alex)->getJson('/api/activity');
 
-        // Then — newest first, so the decision leads.
         expect($response->json('data.0.type'))->toBe('proposal.status_changed')
             ->and($response->json('data.0.actor.name'))->toBe('Alex Rivera');
     });
 
     it('orders newest first', function () {
-        // Given
         $maya = User::factory()->reviewer()->create();
         $old = Proposal::factory()->create(['created_at' => now()->subDays(3)]);
         $new = Proposal::factory()->create(['created_at' => now()->subMinute()]);
 
-        // When
         $response = $this->actingAs($maya)->getJson('/api/activity');
 
-        // Then
         expect($response->json('data.0.proposal.id'))->toBe($new->id)
             ->and($response->json('data.1.proposal.id'))->toBe($old->id);
     });
 
     it('paginates', function () {
-        // Given
         $maya = User::factory()->reviewer()->create();
         Proposal::factory()->count(7)->create();
 
-        // When
         $response = $this->actingAs($maya)->getJson('/api/activity?per_page=3');
 
-        // Then
         $response->assertOk()
             ->assertJsonCount(3, 'data')
             ->assertJsonPath('meta.total', 7)
@@ -151,10 +129,8 @@ describe('activity feed', function () {
     });
 
     it('excludes activity on soft-deleted proposals', function () {
-        // Given — the feed reads through the same visibility query as the
-        // proposal list, so the SoftDeletes global scope reaches it. A
-        // withdrawn proposal reappearing here would republish exactly what
-        // deleting it was meant to retract.
+        // The feed shares the proposal list's visibility query, so the SoftDeletes
+        // scope reaches it — a reappearing proposal republishes what deleting retracted.
         $maya = User::factory()->reviewer()->create();
         $kept = Proposal::factory()->create();
         $trashed = Proposal::factory()->create();
@@ -162,16 +138,13 @@ describe('activity feed', function () {
 
         $trashed->delete();
 
-        // When
         $response = $this->actingAs($maya)->getJson('/api/activity');
 
-        // Then
         $response->assertOk()->assertJsonCount(1, 'data');
         expect($response->json('data.0.proposal.id'))->toBe($kept->id);
     });
 
     it('refuses an unauthenticated caller', function () {
-        // Given / When / Then
         $this->getJson('/api/activity')->assertUnauthorized();
     });
 });

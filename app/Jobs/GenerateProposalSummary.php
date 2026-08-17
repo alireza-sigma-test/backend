@@ -1,7 +1,5 @@
 <?php
 
-// app/Jobs/GenerateProposalSummary.php
-
 namespace App\Jobs;
 
 use App\Enums\SummaryStatus;
@@ -13,27 +11,14 @@ use Illuminate\Foundation\Queue\Queueable;
 use RuntimeException;
 use Throwable;
 
-/**
- * Generates a proposal's AI summary out of band.
- *
- * Queued, never inline: PDF extraction plus a model call is far too slow to
- * sit inside the POST that creates the proposal, and a speaker should not wait
- * on a third-party API to find out whether their submission saved.
- */
 final class GenerateProposalSummary implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * Two retries after the first attempt. Provider errors are usually
-     * transient (a 529, a timeout); permanent ones are not worth paying for
-     * more than three times.
-     */
     public int $tries = 3;
 
     /**
-     * Seconds between attempts. Widening rather than fixed, so a provider
-     * having a bad minute gets a minute to recover.
+     * Seconds between attempts, widening so a provider having a bad minute gets one.
      *
      * @var array<int, int>
      */
@@ -41,26 +26,16 @@ final class GenerateProposalSummary implements ShouldQueue
 
     public function __construct(public Proposal $proposal)
     {
-        // The row is written inside the transaction that creates or updates
-        // the proposal, so the job must not start before that commits — a
-        // worker is a separate process and will happily outrun an uncommitted
-        // write, then find no such proposal.
-        //
-        // Set here rather than as a `public bool $afterCommit = true` property:
-        // Illuminate\Bus\Queueable already declares `public $afterCommit` with
-        // no type, and redeclaring it typed is a fatal "definition differs and
-        // is considered incompatible" at class-composition time. Pest reports
-        // that as a silent exit 2 with no output at all.
+        // The proposal row is written inside a transaction, and a worker will
+        // happily outrun an uncommitted write. Called rather than set as a typed
+        // property: Queueable already declares `public $afterCommit` untyped, and
+        // redeclaring it typed is a fatal at class-composition time.
         $this->afterCommit();
     }
 
     /**
-     * Mark a proposal as queued and dispatch.
-     *
-     * Both halves live here so no caller can do one without the other. A
-     * proposal that is queued but not marked shows the client "unavailable"
-     * until the job lands; one marked but not queued sits on "being
-     * summarized" forever.
+     * Marking and dispatching live together so no caller can do one without the
+     * other — either half alone leaves the client on a permanent wrong state.
      */
     public static function for(Proposal $proposal): void
     {
@@ -71,9 +46,8 @@ final class GenerateProposalSummary implements ShouldQueue
 
     public function handle(ProposalSummarizer $summarizer, PdfTextExtractor $extractor): void
     {
-        // Not an error, and not a retry: this deployment has no API key. Ask
-        // the summarizer rather than the config so there is one definition of
-        // "configured" — see AppServiceProvider's binding.
+        // No API key: not an error and not a retry. Asked of the summarizer rather
+        // than config so "configured" has one definition — see AppServiceProvider.
         if (! $summarizer->isConfigured()) {
             $this->record(SummaryStatus::Unavailable);
 
@@ -87,9 +61,8 @@ final class GenerateProposalSummary implements ShouldQueue
         );
 
         if ($summary === null) {
-            // The summarizer never throws — it returns null for provider
-            // errors, timeouts and empty generations alike. Throwing here is
-            // what converts that into a retry, and after $tries into failed().
+            // The summarizer never throws; it returns null. Throwing is what turns
+            // that into a retry, and after $tries into failed().
             throw new RuntimeException(
                 "Could not summarize proposal {$this->proposal->id}.",
             );
@@ -98,13 +71,7 @@ final class GenerateProposalSummary implements ShouldQueue
         $this->record(SummaryStatus::Ready, $summary);
     }
 
-    /**
-     * Record the give-up.
-     *
-     * Without this a proposal whose summary failed sits on `pending` forever,
-     * and a row that still claims to be "being summarized" a week later is
-     * worse than one that admits it failed — nobody investigates a spinner.
-     */
+    /** Without this a failed summary sits on `pending` forever. */
     public function failed(?Throwable $exception): void
     {
         $this->record(SummaryStatus::Failed);
@@ -112,8 +79,7 @@ final class GenerateProposalSummary implements ShouldQueue
 
     private function record(SummaryStatus $status, ?string $summary = null): void
     {
-        // forceFill, because none of these columns is fillable — they are
-        // written here and nowhere else, never from a request.
+        // forceFill: none of these columns is fillable, by design.
         $this->proposal->forceFill([
             'summary' => $summary,
             'summary_status' => $status,

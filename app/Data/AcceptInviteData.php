@@ -1,7 +1,5 @@
 <?php
 
-// app/Data/AcceptInviteData.php
-
 namespace App\Data;
 
 final readonly class AcceptInviteData

@@ -1,7 +1,5 @@
 <?php
 
-// app/Repositories/Eloquent/EloquentActivityRepository.php
-
 namespace App\Repositories\Eloquent;
 
 use App\Models\Proposal;
@@ -13,24 +11,12 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The feed is derived, not stored.
+ * The feed is derived from the three tables that already record durably that
+ * something happened, so it cannot disagree with the data it describes.
  *
- * Three tables already record durably that something happened — a proposal
- * row's own created_at, proposal_status_changes, and reviews — so a dedicated
- * activity table would be a denormalised copy of facts the schema already
- * holds, with a write path that can silently fall out of step with them. The
- * cost is this union; the benefit is that the feed cannot disagree with the
- * data it describes, and that soft-deleting a proposal retracts its whole
- * history from the feed with no cleanup step to forget.
- *
- * **`proposal.updated` is deliberately absent**, although it is in API.md's
- * vocabulary and is broadcast live. Nothing durably records that a proposal was
- * edited: there are audit rows for status changes and none for edits. The only
- * available proxy is `proposals.updated_at`, which cannot say what changed,
- * collapses every edit of a row into one entry, and *moves* — yesterday's edit
- * silently re-dates itself the next time the row is touched, so the feed's own
- * history would rewrite itself under the reader. Three honest sources beat four
- * where one lies about the past.
+ * `proposal.updated` is deliberately absent despite being broadcast live: nothing
+ * records edits, and `proposals.updated_at` moves, so the feed's own history would
+ * rewrite itself under the reader.
  */
 final class EloquentActivityRepository implements ActivityRepository
 {
@@ -38,11 +24,8 @@ final class EloquentActivityRepository implements ActivityRepository
 
     public function paginate(User $viewer, int $perPage): LengthAwarePaginator
     {
-        // One scoping subquery reused by all three arms. Giving each arm its
-        // own copy of the visibility rule is exactly the drift this exists to
-        // prevent — and here the drift would be a disclosure. Trashed proposals
-        // fall out through the model's SoftDeletes global scope, so no arm
-        // needs its own deleted_at condition either.
+        // One scoping subquery reused by all three arms — a per-arm copy of the
+        // visibility rule would drift, and the drift would be a disclosure.
         $visible = $this->proposals->visibleQuery($viewer)->select('id')->getQuery();
 
         $created = DB::table('proposals')->select([
@@ -70,14 +53,11 @@ final class EloquentActivityRepository implements ActivityRepository
         ])->whereIn('reviews.proposal_id', $visible);
 
         $page = DB::query()
-            // fromSub, not ->union()->paginate(): the paginator wraps whatever
-            // query it is handed in its own count(*), and wrapping a union
-            // directly counts the first arm only.
+            // fromSub, not ->union()->paginate(): the paginator's own count(*)
+            // over a union counts the first arm only.
             ->fromSub($created->unionAll($decided)->unionAll($reviewed), 'activity')
-            // The id is a tie-break, not decoration. Two rows written in the
-            // same second would otherwise order arbitrarily, and an order that
-            // is unstable across page boundaries silently repeats some rows and
-            // skips others.
+            // The id is a tie-break: same-second rows would otherwise order
+            // arbitrarily, repeating and skipping rows across page boundaries.
             ->orderByDesc('occurred_at')
             ->orderByDesc('id')
             ->paginate(max(1, min($perPage, 50)))
@@ -86,10 +66,7 @@ final class EloquentActivityRepository implements ActivityRepository
         return $this->hydrate($page);
     }
 
-    /**
-     * Attach the proposal and actor models to each row — two queries for the
-     * whole page, not two per row. Shaping them is the Resource's job.
-     */
+    /** Two queries for the whole page, not two per row. */
     private function hydrate(LengthAwarePaginator $page): LengthAwarePaginator
     {
         $rows = collect($page->items());
@@ -101,18 +78,13 @@ final class EloquentActivityRepository implements ActivityRepository
             $row->proposal = $proposals->get($row->proposal_id);
             $row->actor = $actors->get($row->actor_id);
 
-            // These rows come off the query builder, not Eloquent, so nothing
-            // has cast them: occurred_at arrives as MySQL's own
-            // "2026-08-16 14:32:40". The broadcast half of ActivityPayload
-            // emits ISO 8601, and the two shapes have to be identical or the
-            // client cannot render a live push and a fetched row with one
-            // component. Pinned by ActivityTest.
+            // Query-builder rows are uncast, so this arrives as MySQL's own format.
+            // It must match ActivityPayload's ISO 8601 or the client cannot render a
+            // live push and a fetched row with one component.
             $row->occurred_at = Carbon::parse($row->occurred_at)->toIso8601String();
 
-            // A row whose proposal or actor has vanished is dropped rather than
-            // rendered half-empty. It should be unreachable — both are foreign
-            // keys — but the feed is read-only and a null here would be a 500
-            // on a page that has no business failing.
+            // Unreachable via the foreign keys, but the feed is read-only and a null
+            // here would be a 500 on a page that has no business failing.
             return $row->proposal && $row->actor ? $row : null;
         })->filter()->values());
     }

@@ -1,7 +1,5 @@
 <?php
 
-// database/seeders/RoleSeeder.php
-
 namespace Database\Seeders;
 
 use App\Enums\UserRole;

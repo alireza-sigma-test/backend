@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Controllers/Api/EmailVerificationController.php
-
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Auth\ResendVerificationCode;

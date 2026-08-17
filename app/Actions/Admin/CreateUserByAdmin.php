@@ -1,7 +1,5 @@
 <?php
 
-// app/Actions/Admin/CreateUserByAdmin.php
-
 namespace App\Actions\Admin;
 
 use App\Data\AdminCreateUserData;

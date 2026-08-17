@@ -1,7 +1,5 @@
 <?php
 
-// app/Repositories/Eloquent/EloquentNotificationRepository.php
-
 namespace App\Repositories\Eloquent;
 
 use App\Models\User;
@@ -12,14 +10,11 @@ final class EloquentNotificationRepository implements NotificationRepository
 {
     public function paginate(User $user, bool $unreadOnly, int $perPage): LengthAwarePaginator
     {
-        // Built from $user->notifications(), never from a bare
-        // DatabaseNotification::query() with a where. The relation carries the
-        // notifiable_type/notifiable_id pair, so the scoping cannot be
-        // forgotten by whoever adds the next filter.
+        // The relation, never a bare DatabaseNotification::query(): it carries the
+        // notifiable_type/notifiable_id pair, so the scoping cannot be forgotten.
         $query = $unreadOnly ? $user->unreadNotifications() : $user->notifications();
 
-        // Newest first is the relation's own default ordering; stated here so a
-        // reader does not have to know that.
+        // Newest first is the relation's own default ordering.
         return $query->latest()->paginate(max(1, min($perPage, 50)))->withQueryString();
     }
 

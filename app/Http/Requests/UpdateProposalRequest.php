@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Requests/UpdateProposalRequest.php
-
 namespace App\Http\Requests;
 
 use App\Data\UpdateProposalData;
@@ -11,12 +9,9 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class UpdateProposalRequest extends FormRequest
 {
-    // 404, not 403 — mirrors ProposalController::show's own existence-hiding
-    // scope. This must live here, not in the controller body:
-    // ValidatesWhenResolvedTrait::validateResolved() calls passesAuthorization()
-    // before it builds the validator, so a guard placed after validation in the
-    // controller never runs for a payload that fails validation — a forbidden
-    // real id would 422 while a fake id 404s, leaking existence.
+    // 404, not 403, mirroring ProposalController::show. It must live here rather than
+    // in the controller: passesAuthorization() runs before validation, so a guard
+    // placed after it would let a forbidden real id 422 while a fake id 404s.
     public function authorize(): bool
     {
         return $this->user()->can('view', $this->route('proposal'));
@@ -42,14 +37,8 @@ class UpdateProposalRequest extends FormRequest
                 },
                 'max:40',
             ],
-            // No `nullable`: `UpdateProposal` only acts when the attachment is
-            // non-null, so `{"attachment": null}` used to be accepted as a
-            // silent 200 no-op that left the PDF exactly as it was — the
-            // opposite of what a client would read "null" to mean. Rejecting
-            // it here makes the `file` rule fail on an explicit null (422,
-            // "must be a file"), which pushes the client to the dedicated
-            // `DELETE /proposals/{id}/attachment` endpoint that already exists
-            // for clearing it — one way to remove an attachment, not two.
+            // No `nullable`, so an explicit null 422s instead of being a silent no-op.
+            // Clearing an attachment goes through DELETE /proposals/{id}/attachment.
             'attachment' => ['sometimes', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:4096'],
         ];
     }
@@ -67,9 +56,8 @@ class UpdateProposalRequest extends FormRequest
         return new UpdateProposalData(
             title: $this->has('title') ? $this->string('title')->trim()->value() : null,
             description: $this->has('description') ? $this->string('description')->trim()->value() : null,
-            // has() and not input() — an explicitly sent [] must reach the
-            // action as [] ("clear them"), while an absent key reaches it as
-            // null ("leave them alone"). input('tags', null) cannot tell those apart.
+            // has(), not input(): an explicit [] means "clear them" and an absent key
+            // means "leave them alone". input('tags', null) cannot tell those apart.
             tags: $this->has('tags') ? array_values($this->input('tags', [])) : null,
             attachment: $this->file('attachment'),
         );

@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Requests/UpdateReviewRequest.php
-
 namespace App\Http\Requests;
 
 use App\Data\UpdateReviewData;

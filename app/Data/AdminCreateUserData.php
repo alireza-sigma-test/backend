@@ -1,7 +1,5 @@
 <?php
 
-// app/Data/AdminCreateUserData.php
-
 namespace App\Data;
 
 use App\Enums\UserRole;

@@ -1,7 +1,5 @@
 <?php
 
-// app/Providers/RepositoryServiceProvider.php
-
 namespace App\Providers;
 
 use App\Repositories\Contracts\ActivityRepository;

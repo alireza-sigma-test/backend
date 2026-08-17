@@ -1,7 +1,5 @@
 <?php
 
-// app/Actions/Proposals/SubmitProposal.php
-
 namespace App\Actions\Proposals;
 
 use App\Data\ProposalData;

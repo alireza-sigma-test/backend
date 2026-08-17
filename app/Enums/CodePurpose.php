@@ -1,7 +1,5 @@
 <?php
 
-// app/Enums/CodePurpose.php
-
 namespace App\Enums;
 
 enum CodePurpose: string
@@ -10,10 +8,8 @@ enum CodePurpose: string
     case Invite = 'invite';
 
     /**
-     * Six digits for verification: low value, high frequency, retyped often.
-     * Twelve characters for an invite: it is the only credential for claiming
-     * an account, so it earns a far larger search space — but it still has to
-     * be readable out of an email, which is why it is not longer than that.
+     * Six digits for verification — low value, retyped often. Twelve for an invite,
+     * the only credential for claiming an account, bounded by staying email-readable.
      */
     public function length(): int
     {

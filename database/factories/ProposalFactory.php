@@ -1,7 +1,5 @@
 <?php
 
-// database/factories/ProposalFactory.php
-
 namespace Database\Factories;
 
 use App\Enums\ProposalStatus;

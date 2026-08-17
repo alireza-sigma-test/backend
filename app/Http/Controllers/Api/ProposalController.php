@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Controllers/Api/ProposalController.php
-
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Proposals\DeleteProposal;
@@ -28,9 +26,7 @@ class ProposalController extends Controller
 
         $proposal = $action->handle($request->user(), $request->toData());
 
-        // Flat, not JsonResource's default `data` wrapper — same convention as
-        // AuthController::me(). ->response() would wrap this in {"data": {...}}
-        // since JsonResource::$wrap defaults to 'data'.
+        // Flat, not JsonResource's default `data` wrapper — ->response() would wrap it.
         return response()->json(new ProposalResource($proposal), 201);
     }
 
@@ -42,25 +38,22 @@ class ProposalController extends Controller
         $page = $repo->paginate($request->toData(), $viewer);
 
         return ProposalResource::collection($page)->additional([
-            // Deliberately unfiltered by search/tags/status — see
-            // EloquentProposalRepository::counts(). The controller must not
-            // re-derive or re-filter this itself.
+            // Deliberately unfiltered by search/tags/status, and not re-derived here
+            // — see EloquentProposalRepository::counts().
             'counts' => $repo->counts($viewer),
         ]);
     }
 
     public function show(int $proposal, ProposalRepository $repo, Request $request): JsonResponse
     {
-        // findForViewer scopes to the viewer, then findOrFail()s — a speaker
-        // requesting another speaker's proposal 404s, never 403, so the id's
-        // existence is not disclosed.
+        // Scopes then findOrFail()s, so another speaker's proposal 404s rather than
+        // 403s and the id's existence stays undisclosed.
         $model = $repo->findForViewer($proposal, $request->user());
 
         $this->authorize('view', $model);
 
-        // Flat, not a {data, max_rating} envelope — ->additional() on a returned
-        // JsonResource wraps it in "data", unlike every other single-resource
-        // response here and in docs/API.md.
+        // Flat, not a {data, max_rating} envelope — ->additional() would wrap it in
+        // "data", unlike every other single-resource response.
         return response()->json([
             ...(new ProposalResource($model))->toArray($request),
             'max_rating' => config('review.max_rating'),
@@ -70,9 +63,8 @@ class ProposalController extends Controller
 
     public function update(UpdateProposalRequest $request, Proposal $proposal, UpdateProposal $action): JsonResponse
     {
-        // The 404-for-visibility guard now lives in UpdateProposalRequest::authorize(),
-        // which runs before validation — see the comment there. This authorize()
-        // call is the separate "can this viewer edit it" check (owner + pending).
+        // The 404-for-visibility guard lives in UpdateProposalRequest::authorize(),
+        // which runs before validation. This is the separate "may they edit it" check.
         $this->authorize('update', $proposal);
 
         $updated = $action->handle($request->user(), $proposal, $request->toData());
@@ -94,11 +86,8 @@ class ProposalController extends Controller
     public function destroyAttachment(Request $request, Proposal $proposal, RemoveAttachment $action): Response
     {
         abort_unless($request->user()->can('view', $proposal), 404);
-        // Editing the attachment is editing the proposal — same gate, so a
-        // decided proposal's PDF is as frozen as its text. An admin who can
-        // delete the whole proposal cannot strip just the PDF from a decided
-        // one; that asymmetry is intentional (docs/API.md files this under
-        // "03 · Submit a proposal", not the admin decision endpoints).
+        // The update gate, not delete: a decided proposal's PDF is as frozen as its
+        // text, so an admin cannot strip the PDF from one. That asymmetry is intended.
         $this->authorize('update', $proposal);
 
         $action->handle($proposal);

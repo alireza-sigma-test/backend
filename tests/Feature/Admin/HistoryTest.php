@@ -1,7 +1,5 @@
 <?php
 
-// tests/Feature/Admin/HistoryTest.php
-
 use App\Models\Proposal;
 use App\Models\ProposalStatusChange;
 use App\Models\User;
@@ -13,10 +11,8 @@ describe('proposal status history', function () {
     beforeEach(fn () => $this->seed(RoleSeeder::class));
 
     it('returns the audit trail newest first for an admin', function () {
-        // Given — two rows with explicit, distinct created_at values. With a
-        // single row (or two rows landing in the same second), any ordering —
-        // or none at all — produces an identical response, so the ordering
-        // claim is only meaningful with two rows pinned to different instants.
+        // Distinct created_at values: with one row, or two in the same second, any
+        // ordering produces an identical response and the claim proves nothing.
         $alex = User::factory()->admin()->create();
         $proposal = Proposal::factory()->create();
 
@@ -32,10 +28,9 @@ describe('proposal status history', function () {
         ]);
         $later->forceFill(['created_at' => now()])->saveQuietly();
 
-        // When
         $response = $this->actingAs($alex)->getJson("/api/proposals/{$proposal->id}/history");
 
-        // Then — the later row (created "now") at index 0, the earlier row
+        // The later row (created "now") at index 0, the earlier row
         // (created yesterday) at index 1: newest first, by data, not by name.
         $response->assertOk()
             ->assertJsonPath('data.0.from', 'rejected')
@@ -50,15 +45,9 @@ describe('proposal status history', function () {
     });
 
     it('orders by id as a tiebreaker, so a same-second tie is still deterministic', function () {
-        // Given — two rows that could plausibly land in the same second.
-        // proposal_status_changes has second-granularity created_at and no
-        // updated_at (UPDATED_AT = null), so without an explicit id
-        // tiebreaker two decisions in the same second have no deterministic
-        // order. Asserting on the query itself, rather than the response
-        // order, is deliberate: for a two-row table MySQL's incidental
-        // tie-breaking can happen to match either order regardless of
-        // whether ->latest('id') is present, which would let a
-        // response-shape assertion pass either way.
+        // created_at is second-granularity, so same-second decisions need the id
+        // tiebreaker. Asserted on the query rather than the response order: over two
+        // rows MySQL's incidental ordering can match either way regardless.
         $alex = User::factory()->admin()->create();
         $proposal = Proposal::factory()->create();
         ProposalStatusChange::create([
@@ -72,10 +61,8 @@ describe('proposal status history', function () {
 
         DB::enableQueryLog();
 
-        // When
         $this->actingAs($alex)->getJson("/api/proposals/{$proposal->id}/history")->assertOk();
 
-        // Then
         $query = collect(DB::getQueryLog())
             ->first(fn ($entry) => str_contains($entry['query'], 'proposal_status_changes'));
         DB::disableQueryLog();
@@ -85,10 +72,8 @@ describe('proposal status history', function () {
     });
 
     it('refuses a reviewer and a speaker', function () {
-        // Given
         $proposal = Proposal::factory()->create();
 
-        // When / Then
         $this->actingAs(User::factory()->reviewer()->create())
             ->getJson("/api/proposals/{$proposal->id}/history")->assertForbidden();
         $this->actingAs(User::factory()->speaker()->create())
@@ -96,20 +81,16 @@ describe('proposal status history', function () {
     });
 
     it('returns an empty list for a proposal that was never decided', function () {
-        // Given
         $alex = User::factory()->admin()->create();
         $proposal = Proposal::factory()->create();
 
-        // When / Then
         $this->actingAs($alex)->getJson("/api/proposals/{$proposal->id}/history")
             ->assertOk()->assertJsonCount(0, 'data');
     });
 
     it('refuses an unauthenticated request', function () {
-        // Given
         $proposal = Proposal::factory()->create();
 
-        // When / Then
         $this->getJson("/api/proposals/{$proposal->id}/history")->assertUnauthorized();
     });
 });

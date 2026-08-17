@@ -1,16 +1,12 @@
 <?php
 
-// app/Data/UpdateProposalData.php
-
 namespace App\Data;
 
 use Illuminate\Http\UploadedFile;
 
 /**
- * Every field is nullable and null means "absent from the request", not
- * "clear this". The one exception is $tags, where null is absent but an
- * empty array is a deliberate "remove them all" — the Form Request draws
- * that distinction with has(), which this DTO cannot.
+ * null means "absent from the request", not "clear this". For $tags an empty array is
+ * a deliberate "remove them all" — the Form Request draws that line with has().
  */
 final readonly class UpdateProposalData
 {

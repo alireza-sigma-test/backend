@@ -1,7 +1,5 @@
 <?php
 
-// app/Services/ClaudeProposalSummarizer.php
-
 namespace App\Services;
 
 use App\Ai\Agents\ProposalSummaryAgent;
@@ -10,26 +8,16 @@ use Laravel\Ai\Enums\Lab;
 use Throwable;
 
 /**
- * Summarizes through Claude, via the first-party Laravel AI SDK.
- *
- * One call, an explicit timeout, and **no retry here**: the job owns retrying
- * (GenerateProposalSummary, `$tries = 3`). Retrying in both places multiplies
- * attempts silently — three job attempts against three client retries is nine
- * calls to a paid API for one summary, and nothing in the logs says so.
- *
- * Returns null on every failure rather than throwing, per the contract. The
- * caller cannot do anything useful with a provider exception except record
- * that no summary was produced, and letting it escape would put vendor
- * exception types in the job's signature.
+ * No retry here — GenerateProposalSummary owns it. Retrying in both places would
+ * silently multiply calls to a paid API. Returns null on failure rather than
+ * throwing, keeping vendor exception types out of the job's signature.
  */
 final class ClaudeProposalSummarizer implements ProposalSummarizer
 {
     public function isConfigured(): bool
     {
-        // If this is bound at all a key was present at boot (see
-        // AppServiceProvider). Re-reading config rather than returning a bare
-        // `true` keeps the answer honest if the binding is ever overridden in
-        // a test or a tinker session.
+        // Re-read rather than a bare `true`, so the answer stays honest if the
+        // binding is overridden in a test.
         return filled(config('ai.providers.anthropic.key'));
     }
 
@@ -43,9 +31,8 @@ final class ClaudeProposalSummarizer implements ProposalSummarizer
                 timeout: config('ai.summary.timeout'),
             );
         } catch (Throwable $e) {
-            // Reported, not swallowed: the caller only needs "no summary", but
-            // an operator investigating a run of `failed` rows needs the
-            // provider's actual error.
+            // Reported, not swallowed: an operator investigating a run of `failed`
+            // rows needs the provider's actual error.
             report($e);
 
             return null;
@@ -57,12 +44,9 @@ final class ClaudeProposalSummarizer implements ProposalSummarizer
     }
 
     /**
-     * The user message.
-     *
-     * The delimiters are load-bearing, not formatting. Extracted PDF text is
-     * untrusted input — a speaker controls it and benefits from a flattering
-     * summary — so it goes in a block the system prompt has already named as
-     * material to summarize rather than instructions to follow.
+     * The delimiters are load-bearing, not formatting: PDF text is speaker-controlled
+     * input, so it goes in a block the system prompt names as material to summarize
+     * rather than instructions to follow.
      */
     private function compose(string $title, string $description, ?string $attachmentText): string
     {

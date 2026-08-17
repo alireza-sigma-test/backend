@@ -1,7 +1,5 @@
 <?php
 
-// app/Repositories/Filters/SearchTitle.php
-
 namespace App\Repositories\Filters;
 
 use Closure;

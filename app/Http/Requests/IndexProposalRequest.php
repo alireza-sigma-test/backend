@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Requests/IndexProposalRequest.php
-
 namespace App\Http\Requests;
 
 use App\Data\ProposalFilterData;
@@ -14,9 +12,8 @@ class IndexProposalRequest extends FormRequest
 {
     public function rules(): array
     {
-        // exists:users,id is skipped for speakers: their author_id is discarded
-        // in toData() below, so validating it against the users table would only
-        // serve as a user-id enumeration oracle for a value that is never used.
+        // Skipped for speakers: toData() discards their author_id anyway, so
+        // validating it would only be a user-id enumeration oracle.
         $authorId = ['sometimes', 'nullable', 'integer'];
         if (! $this->user()->hasRole(UserRole::Speaker->value)) {
             $authorId[] = 'exists:users,id';
@@ -28,9 +25,8 @@ class IndexProposalRequest extends FormRequest
             'status' => ['sometimes', 'nullable', Rule::in(ProposalStatus::values())],
             'author_id' => $authorId,
             'sort' => ['sometimes', Rule::in(['newest', 'oldest', 'rating'])],
-            // Deliberately no `max:50` here: the repository's
-            // max(1, min($perPage, 50)) is the single enforcement point, so
-            // per_page=500 clamps to 200 with meta.per_page=50 rather than 422.
+            // No `max:50`: the repository's min($perPage, 50) is the single
+            // enforcement point, so an oversized value clamps rather than 422s.
             'per_page' => ['sometimes', 'integer', 'min:1'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ];
@@ -38,8 +34,7 @@ class IndexProposalRequest extends FormRequest
 
     public function toData(): ProposalFilterData
     {
-        // author_id is a reviewer/admin affordance; a speaker is already
-        // scoped to their own proposals, so it is ignored for them.
+        // A reviewer/admin affordance; speakers are already scoped to their own.
         $authorId = $this->user()->hasRole(UserRole::Speaker->value)
             ? null
             : ($this->integer('author_id') ?: null);

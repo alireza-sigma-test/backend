@@ -1,7 +1,5 @@
 <?php
 
-// app/Policies/ProposalPolicy.php
-
 namespace App\Policies;
 
 use App\Enums\ProposalStatus;
@@ -21,10 +19,8 @@ class ProposalPolicy
         return $this->isStaff($user) || $this->owns($user, $proposal);
     }
 
-    // Verification also gates every mutating ability below. This keeps the
-    // `can` object truthful — otherwise the client renders a form (e.g. a
-    // review) that 403s on submit — even though the route-level `verified`
-    // middleware already refuses the request first; see EnsureEmailIsVerified.
+    // The hasVerifiedEmail() conjunct on every mutating ability below keeps the `can`
+    // object truthful, so the client never renders a form that 403s on submit.
     public function create(User $user): bool
     {
         return $user->hasVerifiedEmail() && $user->hasRole(UserRole::Speaker->value);
@@ -60,15 +56,8 @@ class ProposalPolicy
     }
 
     /**
-     * The AI summary is a reading aid for the people evaluating a proposal —
-     * verified reviewers and admins. **Never the author**, and that is the
-     * point of the ability rather than an incidental consequence: a speaker
-     * who could read the summary of their own proposal would start writing
-     * for the summarizer instead of for the reviewer.
-     *
-     * Verified, like every other ability here that grants a real capability.
-     * An unverified reviewer has cleared no gate yet, and this one is not the
-     * exception.
+     * Staff only, and never the author — that exclusion is the point: a speaker who
+     * could read their own summary would write for the summarizer, not the reviewer.
      */
     public function viewSummary(User $user, Proposal $proposal): bool
     {

@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Requests/AdminCreateUserRequest.php
-
 namespace App\Http\Requests;
 
 use App\Data\AdminCreateUserData;

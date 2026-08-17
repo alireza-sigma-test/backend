@@ -1,7 +1,5 @@
 <?php
 
-// routes/api.php
-
 use App\Http\Controllers\Api\ActivityController;
 use App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\AuthController;
@@ -17,29 +15,23 @@ use App\Http\Controllers\Api\StatusController;
 use App\Http\Controllers\Api\TagController;
 use Illuminate\Support\Facades\Route;
 
-// Named limiters, not the inline `throttle:6,1` form. Laravel keys an unnamed
-// throttle by domain+IP only — never the route path — so two routes sharing the
-// literal string share one bucket, and failed registrations would lock a user
-// out of logging in.
+// Named limiters, not inline `throttle:6,1`: an unnamed throttle is keyed by
+// domain+IP, so routes sharing the literal string share one bucket — failed
+// registrations would lock a user out of logging in.
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 Route::post('/invites/accept', [InviteController::class, 'accept'])->middleware('throttle:accept-invite');
 
-// Deliberately outside the auth:sanctum group below — it is the only
-// unauthenticated read surface in the app, feeding the signed-out login
-// screen's two marketing counters.
+// The only unauthenticated read surface, feeding the signed-out login screen.
 Route::get('/public-stats', PublicStatsController::class)->middleware('throttle:public-stats');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
-    // Deliberately here, directly in auth:sanctum — not nested inside any
-    // verification gate. The caller is precisely a signed-in but unverified
-    // user, so gating these would close the only route out of unverified and
-    // make it impossible for any account to ever become one. A later task
-    // wraps the mutating routes below in a `verified` group; do not let that
-    // restructure sweep these two in.
+    // Must stay outside the `verified` group below: the caller is precisely a
+    // signed-in but unverified user, so gating these closes the only route out of
+    // unverified.
     Route::post('/email/verify', [EmailVerificationController::class, 'verify'])->middleware('throttle:verify-email');
     Route::post('/email/resend', [EmailVerificationController::class, 'resend'])->middleware('throttle:resend-code');
 
@@ -59,31 +51,22 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/proposals/{proposal}/status', [StatusController::class, 'update'])->whereNumber('proposal');
     });
 
-    // Deliberately outside the `verified` group above. These touch nothing
-    // but the caller's own read-state and disclose nothing they were not
-    // already sent; gating them would leave an unverified reviewer with a
-    // badge that only ever counts up and no way to clear it.
-    // The pair: notifications are addressed to you, activity is everything you
-    // may see. Same viewer scoping as GET /proposals, by construction — the
-    // feed's query is built on ProposalRepository::visibleQuery().
+    // Outside `verified`: these touch only the caller's own read-state, and gating
+    // them would leave an unverified reviewer unable to clear their badge.
     Route::get('/activity', ActivityController::class);
 
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll']);
-    // Registered AFTER read-all so the literal segment wins: notification ids
-    // are uuids, and `{notification}` would otherwise swallow "read-all" and
-    // 404 it.
+    // After read-all so the literal segment wins — `{notification}` would otherwise
+    // swallow "read-all".
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'read']);
 
     Route::get('/tags', [TagController::class, 'index']);
     Route::get('/stats', StatsController::class);
 
-    // `admin` refuses every non-admin before route-model binding or any Form
-    // Request validation runs (see EnsureAdmin and its prepend in
-    // bootstrap/app.php) — closing the fifth enumeration oracle on `store`
-    // and the id-disclosure leak on `updateRole` at the same time. `verified`
-    // still nests inside it, same as the proposal/review group above: index
-    // stays open to an unverified admin, the two writes do not.
+    // `admin` refuses non-admins before route-model binding or Form Request
+    // validation (see EnsureAdmin), which is what closes the enumeration oracles on
+    // these routes. `verified` nests inside so index stays open, the writes do not.
     Route::prefix('admin')->middleware(['admin', 'throttle:admin'])->group(function () {
         Route::get('/users', [Admin\UserController::class, 'index']);
 

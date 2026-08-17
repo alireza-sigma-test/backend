@@ -1,18 +1,12 @@
 <?php
 
-// app/Events/ProposalStatusChanged.php
-
 namespace App\Events;
 
 use Illuminate\Broadcasting\PrivateChannel;
 
 /**
- * An admin approved or rejected a proposal.
- *
- * Goes to the author's own channel and nowhere else. This is the one event
- * whose audience is a single person, and it is why `private-user.{id}` has to
- * verify identity rather than authentication: the decision on someone's
- * proposal is theirs to hear first.
+ * The author's own channel and nowhere else — the one event whose audience is a single
+ * person, and why `private-user.{id}` must verify identity, not just authentication.
  */
 final class ProposalStatusChanged extends ProposalBroadcast
 {

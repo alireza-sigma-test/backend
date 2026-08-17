@@ -1,7 +1,5 @@
 <?php
 
-// app/Actions/Proposals/RemoveAttachment.php
-
 namespace App\Actions\Proposals;
 
 use App\Jobs\GenerateProposalSummary;

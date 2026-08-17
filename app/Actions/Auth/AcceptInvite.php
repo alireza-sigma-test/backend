@@ -1,7 +1,5 @@
 <?php
 
-// app/Actions/Auth/AcceptInvite.php
-
 namespace App\Actions\Auth;
 
 use App\Data\AcceptInviteData;
@@ -14,9 +12,8 @@ use Illuminate\Support\Facades\Hash;
 final class AcceptInvite
 {
     /**
-     * Same shape as LoginUser's constant-time defence. Without the dummy work,
-     * an unknown address returns measurably faster than a known one and the
-     * enumeration oracle answers by the clock instead of by the response.
+     * Same constant-time defence as LoginUser: without the dummy work an unknown
+     * address returns measurably faster, and the clock becomes the oracle.
      */
     private const DUMMY_HASH = '$2y$12$Pj/5N/Ebkm2yTUup94tKZ.tP6xd8sEJxcnnTOnq5relN9n3Z7pPpS';
 
@@ -34,14 +31,9 @@ final class AcceptInvite
             return null;
         }
 
-        // consume() runs inside the same transaction as the password write —
-        // not before it. UserCodeService::consume() is atomic on its own
-        // column, but pairing "burn the code" with "set the password" is a
-        // two-write invariant that a single-statement update cannot cover.
-        // If the code were consumed first and committed, and the password
-        // write then failed, the invitation would be gone with no account
-        // ever claimed and no way to retry. Keeping both in one transaction
-        // means a failed password write rolls consumption back with it.
+        // consume() must run inside the same transaction as the password write: if the
+        // code were burned and committed first and the write then failed, the
+        // invitation would be gone with no account claimed and no way to retry.
         return DB::transaction(function () use ($user, $data): ?array {
             if (! $this->codes->consume($user, CodePurpose::Invite, $data->code)) {
                 return null;

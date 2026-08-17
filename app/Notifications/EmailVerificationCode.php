@@ -1,7 +1,5 @@
 <?php
 
-// app/Notifications/EmailVerificationCode.php
-
 namespace App\Notifications;
 
 use Illuminate\Notifications\Messages\MailMessage;

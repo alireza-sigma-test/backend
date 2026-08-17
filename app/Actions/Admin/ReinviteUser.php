@@ -1,7 +1,5 @@
 <?php
 
-// app/Actions/Admin/ReinviteUser.php
-
 namespace App\Actions\Admin;
 
 use App\Enums\CodePurpose;
@@ -12,24 +10,15 @@ use App\Notifications\AccountInvitation;
 use App\Services\UserCodeService;
 
 /**
- * Recovers the account finding 2 of the final review found permanently dead:
- * an admin-created user whose only credential — the 12-character invite code
- * — expired or exhausted its attempt cap. Before this action, nothing could
- * ever reissue it: re-inviting failed on `unique:users,email`, self-registration
- * failed the same way, login failed against the random unusable password
- * CreateUserByAdmin set, and `/email/resend` sits behind `auth:sanctum`, which
- * a user with no working credential can never reach. The address was burnt
- * forever.
+ * Recovers an admin-created account whose only credential — the invite code —
+ * expired or hit its attempt cap. Nothing else can: re-inviting and
+ * self-registration both fail `unique:users,email`, login fails against the
+ * unusable password CreateUserByAdmin sets, and `/email/resend` is behind
+ * auth:sanctum.
  *
- * Deliberately its own route (`POST /api/admin/users/{user}/reinvite`) rather
- * than overloading `POST /api/admin/users` to reissue on a matching email:
- * that would mean relaxing `unique:users,email` conditionally inside the
- * create path and re-deriving, on every create request, whether a matched
- * row is "safe to reissue" — the exact kind of validate-then-branch shape
- * that made finding 1 an oracle in the first place, just moved rather than
- * removed. A dedicated action, bound to a specific user id the admin already
- * saw via GET /api/admin/users, keeps create and reissue as two decisions
- * instead of one endpoint doing both.
+ * Its own route rather than overloading POST /api/admin/users, which would mean
+ * relaxing `unique:users,email` conditionally and re-deriving "safe to reissue"
+ * on every create — a validate-then-branch shape that reads as an oracle.
  */
 final class ReinviteUser
 {
@@ -37,12 +26,9 @@ final class ReinviteUser
 
     public function handle(User $target): User
     {
-        // Eligible only for an account this flow itself put in this state:
-        // never claimed (no password of their own ever set — accepting an
-        // invite is what verifies the email, so this is the same check as
-        // "has this invite ever been accepted"), and only ever reachable
-        // through an admin invite in the first place. See
-        // UserNotReinvitableException for why both branches matter.
+        // Eligible only for an unclaimed account this flow itself created. Accepting
+        // an invite is what verifies the email, so the two conditions together mean
+        // "invited and never accepted".
         $wasInvited = UserCode::where('user_id', $target->id)
             ->where('purpose', CodePurpose::Invite)
             ->exists();

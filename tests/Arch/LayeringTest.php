@@ -1,7 +1,5 @@
 <?php
 
-// tests/Arch/LayeringTest.php
-
 arch('enums are string-backed')
     ->expect('App\Enums')
     ->toBeStringBackedEnums();
@@ -27,12 +25,8 @@ arch('controllers never run queries')
     ->expect('App\Http\Controllers')
     ->not->toUse(['Illuminate\Support\Facades\DB', 'Illuminate\Database\Eloquent\Builder']);
 
-// `App\Repositories\Contracts` was already outside this rule by construction —
-// only the Eloquent and Filters namespaces are listed. `App\Services` was
-// listed wholesale because Services had no sub-namespace until
-// `App\Services\Contracts` arrived, and an interface cannot be final. Ignoring
-// it rather than moving the interface elsewhere keeps contracts beside the
-// implementations they describe, which is where the repository ones sit too.
+// `App\Services\Contracts` is ignored because an interface cannot be final, and
+// keeping contracts beside their implementations matches the repository namespaces.
 arch('services and repositories are final')
     ->expect(['App\Services', 'App\Repositories\Eloquent', 'App\Repositories\Filters'])
     ->toBeFinal()

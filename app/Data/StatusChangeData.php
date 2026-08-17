@@ -1,7 +1,5 @@
 <?php
 
-// app/Data/StatusChangeData.php
-
 namespace App\Data;
 
 use App\Enums\ProposalStatus;

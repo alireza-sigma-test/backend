@@ -1,7 +1,5 @@
 <?php
 
-// app/Models/UserCode.php
-
 namespace App\Models;
 
 use App\Enums\CodePurpose;
